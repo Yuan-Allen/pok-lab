@@ -171,6 +171,9 @@ launch-run:
 
 run: xcov-pre-run spoq-pre-run instrumentation-pre-run launch-run xcov-post-run instrumentation-post-run spoq-post-run
 
+run-nographic:
+	$(MAKE) run CONFIG_QEMU="$(CONFIG_QEMU) -nographic"
+
 #old code, deprecated
 #	for v in $(PARTITIONS); do \
 #      cd `dirname $$v` ; \
