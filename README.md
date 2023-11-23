@@ -1,12 +1,19 @@
-[![Code Quality Score](https://www.code-inspector.com/project/12/score/svg)](https://www.code-inspector.com/public/project/12/POK/dashboard)
-[![Code Grade](https://www.code-inspector.com/project/12/status/svg)](https://www.code-inspector.com/public/project/12/POK/dashboard)
-[![Build status](https://travis-ci.org/pok-kernel/pok.svg?master)](https://travis-ci.org/pok-kernel)
+# POK lab
 
-POK
-===
+This is the project for the Real-Time Systems and Scheduling course at SJTU SE.
 
-POK kernel, a secure and safe micro-kernel for embedded systems.
+# Prerequisites
 
-More information on https://pok-kernel.github.io/
+Ensure you have the necessary prerequisites and dependencies installed by referring to the documentation at https://pok-kernel.github.io/usage/.
 
-We prefer the GitHub issue tracker to be used for bug reports, questions and suggestions. Support requests and collaboration proposals can be sent to `pok-maintainers@listes.telecom-paris.fr`.
+# Usage
+
+To run the project in normal mode, use the following command:
+```
+make run
+```
+
+For running QEMU in -nographic mode, use the following command:
+```
+make run-nographic
+```
