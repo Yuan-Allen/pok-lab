@@ -8,12 +8,24 @@ Ensure you have the necessary prerequisites and dependencies installed by referr
 
 # Usage
 
+## Normal run
 To run the project in normal mode, use the following command:
 ```
 make run
 ```
 
-For running QEMU in -nographic mode, use the following command:
+## Run in `-nographic` mode
+
+For running QEMU in `-nographic` mode, use the following command.
 ```
 make run-nographic
+```
+
+To stop qemu, use the following command.
+```
+pkill qemu
+```
+This may be rude if you have other QEMU processes running as well. If so, you can use the following command instead.
+```
+kill $(cat qemu.pid)
 ```
