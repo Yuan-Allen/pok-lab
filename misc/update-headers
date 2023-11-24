@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 #
 # Usage: update-headers [--force | --check]
 #
@@ -36,7 +36,7 @@ For more information on the POK licence, please see our LICENCE FILE
 Please follow the coding guidelines described in doc/CODING_GUIDELINES
 
                                      Copyright (c) 2007-{year} POK team
-""".format(marker = MARKER, year = datetime.now().year).split("\n")[1:-1]
+""".format(marker = MARKER, year = 2022).split("\n")[1:-1]
 
 extensions = {}
 
