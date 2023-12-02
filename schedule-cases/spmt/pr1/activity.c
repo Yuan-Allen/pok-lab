@@ -12,23 +12,18 @@
  *                                      Copyright (c) 2007-2022 POK team
  */
 
-#include <core/semaphore.h>
 #include <core/thread.h>
 #include <libc/stdio.h>
 #include <types.h>
 
-uint8_t val;
-
 void *job1() {
   while (1) {
-    printf("P1T1: Hello\n");
-    pok_thread_sleep(2000000);
+    // printf("P1T1: Hello\n");
   }
 }
 
 void *job2() {
   while (1) {
-    printf("P1T2: World\n");
-    pok_thread_sleep(2000000);
+    // printf("P1T2: World\n");
   }
 }

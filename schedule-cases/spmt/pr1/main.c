@@ -27,12 +27,16 @@ int main() {
   tattr.priority = 40;
   tattr.entry = job1;
   tattr.processor_affinity = 0;
+  tattr.time_capacity = 2;
+  tattr.period = 10000000;
 
   ret = pok_thread_create(&tid, &tattr);
   printf("[P1] pok_thread_create (1) return=%d\n", ret);
 
-  tattr.priority = 42;
+  tattr.priority = 40;
   tattr.entry = job2;
+  tattr.time_capacity = 3;
+  tattr.period = 10000000;
 
   ret = pok_thread_create(&tid, &tattr);
   printf("[P1] pok_thread_create (2) return=%d\n", ret);
