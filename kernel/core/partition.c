@@ -44,6 +44,7 @@ uint8_t pok_partitions_index = 0;
 
 extern uint64_t pok_sched_slots[];
 extern uint64_t partition_processor_affinity[];
+extern uint64_t pok_sched_major_frame;
 
 /**
  **\brief Setup the scheduler used in partition pid
@@ -300,7 +301,7 @@ pok_ret_t pok_partition_set_mode(const uint8_t pid,
               thread->end_time = thread->wakeup_time + thread->time_capacity;
           } else {
             thread->next_activation = thread->wakeup_time +
-                                      POK_CONFIG_SCHEDULING_MAJOR_FRAME +
+                                      pok_sched_major_frame +
                                       POK_CURRENT_PARTITION.activation;
             thread->end_time = thread->next_activation + thread->time_capacity;
             thread->state = POK_STATE_WAIT_NEXT_ACTIVATION;

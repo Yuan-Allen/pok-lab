@@ -73,12 +73,14 @@ extern void pok_port_flush_partition(uint8_t);
 /* Declarations of partition scheduling functions */
 uint8_t pok_sched_part_global_timeslice(pok_partition_t pok_partitions[],
                                         const uint8_t current_partition);
-
-const uint64_t POK_BASE_SLOT_LENGTH = 1000000000; // 1s, in ns
+uint8_t pok_sched_part_global_pps(pok_partition_t pok_partitions[],
+                                  const uint8_t current_partition);
 
 uint64_t pok_sched_slots[POK_CONFIG_SCHEDULING_NBSLOTS];
 uint8_t pok_sched_slots_allocation[POK_CONFIG_SCHEDULING_NBSLOTS];
 
+uint64_t pok_sched_major_frame; // use the variable instead of using
+                                // POK_CONFIG_SCHEDULING_MAJOR_FRAME directly
 uint64_t pok_sched_next_deadline;
 uint64_t pok_sched_next_major_frame;
 uint64_t pok_sched_next_flush; // variable used to handle user defined
@@ -101,11 +103,11 @@ void pok_init_slots() {
   switch ((pok_sched_t)POK_CONFIG_GLOBAL_SCHEDULER) {
   case POK_SCHED_GLOBAL_PPS:
     for (uint8_t i = 0; i < POK_CONFIG_SCHEDULING_NBSLOTS; i++) {
-      pok_sched_slots[i] = POK_BASE_SLOT_LENGTH; // 1s
+      pok_sched_slots[i] = (uint64_t)POK_CONFIG_BASE_SLOT_LENGTH;
       pok_sched_slots_allocation[i] = i;
     }
-    POK_CONFIG_SCHEDULING_MAJOR_FRAME =
-        POK_CONFIG_SCHEDULING_NBSLOTS * POK_BASE_SLOT_LENGTH;
+    pok_sched_major_frame =
+        (uint64_t)POK_CONFIG_SCHEDULING_NBSLOTS * POK_CONFIG_BASE_SLOT_LENGTH;
     break;
   default:
     for (int i = 0; i < POK_CONFIG_SCHEDULING_NBSLOTS; ++i) {
@@ -113,6 +115,7 @@ void pok_init_slots() {
       pok_sched_slots_allocation[i] =
           (uint8_t[])POK_CONFIG_SCHEDULING_SLOTS_ALLOCATION[i];
     }
+    pok_sched_major_frame = POK_CONFIG_SCHEDULING_MAJOR_FRAME;
     break;
   }
 #else
@@ -126,7 +129,7 @@ void pok_init_slots() {
 
 void pok_setup_scheduler_global() {
 #ifdef POK_CONFIG_GLOBAL_SCHEDULER
-  switch (POK_SCHED_GLOBAL_SCHEDULER) {
+  switch (POK_CONFIG_GLOBAL_SCHEDULER) {
   case POK_SCHED_GLOBAL_PPS:
     sched_partiton_func = pok_sched_part_global_pps;
     break;
@@ -161,7 +164,7 @@ void pok_sched_init(void) {
     total_time = total_time + pok_sched_slots[slot];
   }
 
-  if (total_time != POK_CONFIG_SCHEDULING_MAJOR_FRAME) {
+  if (total_time != pok_sched_major_frame) {
 #ifdef POK_NEEDS_DEBUG
     printf("Major frame is not compliant with all time slots\n");
 #endif
@@ -169,7 +172,7 @@ void pok_sched_init(void) {
   }
 
   pok_sched_current_slot = 0;
-  pok_sched_next_major_frame = POK_CONFIG_SCHEDULING_MAJOR_FRAME;
+  pok_sched_next_major_frame = pok_sched_major_frame;
   pok_sched_next_deadline = pok_sched_slots[0];
   pok_sched_next_flush = 0;
   pok_current_partition = pok_sched_slots_allocation[0];
@@ -212,16 +215,61 @@ uint8_t pok_elect_partition() {
 #else  // activate default flushing policy at each Major Frame beginning
     if (pok_sched_next_major_frame <= now) {
       pok_sched_next_major_frame =
-          pok_sched_next_major_frame + POK_CONFIG_SCHEDULING_MAJOR_FRAME;
+          pok_sched_next_major_frame + pok_sched_major_frame;
       pok_port_flushall();
     }
 #endif /* defined POK_FLUSH_PERIOD || POK_NEEDS_FLUSH_ON_WINDOWS */
 #endif /* defined (POK_NEEDS_PORTS....) */
-    next_partition = sched_partiton_func(pok_partitions, pok_current_partition);
+    pok_sched_current_slot =
+        (pok_sched_current_slot + 1) % POK_CONFIG_SCHEDULING_NBSLOTS;
+    pok_sched_next_deadline =
+        pok_sched_next_deadline + pok_sched_slots[pok_sched_current_slot];
+    next_partition = pok_sched_slots_allocation[pok_sched_current_slot];
+    if (pok_partitions[next_partition].mode != POK_PARTITION_MODE_INIT_COLD &&
+        pok_partitions[next_partition].mode != POK_PARTITION_MODE_INIT_WARM) {
+      // We wrap the function call in the condition to give those partitions
+      // that are still in init mode a chance to finish their init, or they may
+      // never be initialized and scheduled.
+      next_partition =
+          sched_partiton_func(pok_partitions, pok_current_partition);
+    }
+#ifdef POK_NEEDS_DEBUG
+    printf("\nScheduling partition %d\n", next_partition);
+#endif
   }
 #endif /* POK_CONFIG_NB_PARTITIONS > 1 */
 
   return next_partition;
+}
+
+void activate_waiting_threads() {
+  uint64_t now = POK_GETTICK();
+
+  for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
+    pok_thread_t *thread;
+    for (i = 0; i < pok_partitions[i].nthreads; i++) {
+      thread = &(pok_threads[pok_partitions[i].thread_index_low + i]);
+
+      if (thread->processor_affinity == pok_get_proc_id()) {
+
+#if defined(POK_NEEDS_LOCKOBJECTS) || defined(POK_NEEDS_PORTS_QUEUEING) ||     \
+    defined(POK_NEEDS_PORTS_SAMPLING)
+        if ((thread->state == POK_STATE_WAITING) &&
+            (thread->wakeup_time <= now)) {
+          thread->state = POK_STATE_RUNNABLE;
+        }
+#endif
+
+        if ((thread->state == POK_STATE_WAIT_NEXT_ACTIVATION) &&
+            (thread->next_activation <= now)) {
+          assert(thread->time_capacity);
+          thread->state = POK_STATE_RUNNABLE;
+          thread->remaining_time_capacity = thread->time_capacity;
+          thread->next_activation = thread->next_activation + thread->period;
+        }
+      }
+    }
+  }
 }
 
 uint32_t pok_elect_thread(uint8_t new_partition_id) {
@@ -781,13 +829,42 @@ uint32_t pok_sched_get_current(uint32_t *thread_id) {
 
 uint8_t pok_sched_part_global_timeslice(__attribute__((unused))
                                         pok_partition_t pok_partitions[],
+                                        __attribute__((unused))
                                         const uint8_t current_partition) {
+  return pok_sched_slots_allocation[pok_sched_current_slot];
+}
+
+// Calculate priority for each partition
+// The priority is the sum of all RUNNABLE threads' priority in the partition.
+void caculate_and_update_priority(pok_partition_t pok_partitions[]) {
+  for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
+    uint32_t priority = 0;
+    for (uint32_t j = 0; j < pok_partitions[i].nthreads; j++) {
+      if (pok_threads[pok_partitions[i].thread_index_low + j].state ==
+          POK_STATE_RUNNABLE) {
+        priority +=
+            pok_threads[pok_partitions[i].thread_index_low + j].priority;
+      }
+    }
+    pok_partitions[i].priority = priority;
+  }
+}
+
+uint8_t pok_sched_part_global_pps(pok_partition_t pok_partitions[],
+                                  const uint8_t current_partition) {
   uint8_t next_partition = current_partition;
-  pok_sched_current_slot =
-      (pok_sched_current_slot + 1) % POK_CONFIG_SCHEDULING_NBSLOTS;
-  pok_sched_next_deadline =
-      pok_sched_next_deadline + pok_sched_slots[pok_sched_current_slot];
-  next_partition = pok_sched_slots_allocation[pok_sched_current_slot];
+  uint32_t max_priority = 0;
+
+  // Activate waiting threads, or some partitions may never be scheduled.
+  activate_waiting_threads();
+  caculate_and_update_priority(pok_partitions);
+
+  for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
+    if (pok_partitions[i].priority > max_priority) {
+      max_priority = pok_partitions[i].priority;
+      next_partition = i;
+    }
+  }
 
   return next_partition;
 }
