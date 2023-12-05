@@ -233,7 +233,8 @@ uint8_t pok_elect_partition() {
       next_partition =
           sched_partiton_func(pok_partitions, pok_current_partition);
     }
-#ifdef POK_NEEDS_DEBUG
+#if defined(POK_NEEDS_DEBUG) && defined(POK_CONFIG_GLOBAL_SCHEDULER) &&        \
+    POK_CONFIG_GLOBAL_SCHEDULER != POK_SCHED_GLOBAL_TIMESLICE
     printf("\nScheduling partition %d\n", next_partition);
 #endif
   }
