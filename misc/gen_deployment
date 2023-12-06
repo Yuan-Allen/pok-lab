@@ -349,6 +349,17 @@ def gen_kernel_deployment_h(fd, config):
         configs["PARTITIONS_SCHEDULER"] = c_list(["POK_SCHED_{}".format(v) for v in schedulers], is_symbol=True)
         includes.add("core/schedvalues.h")
 
+    global_scheduler = get_option_or(config, "kernel.scheduler.policy", "TIMESLICE").upper()
+    if global_scheduler not in ["TIMESLICE", "PPS"]:
+        raise Exception("only TIMESLICE and PPS schedulers are implemented right now")
+    if global_scheduler != "TIMESLICE":
+        configs["GLOBAL_SCHEDULER"] = "POK_SCHED_GLOBAL_{}".format(global_scheduler)
+        includes.add("core/schedvalues.h")
+    
+    base_slot_length = get_option_or(config, "kernel.scheduler.base_slot_length", decode=to_ns, default=1000000000) # 1s
+    configs["BASE_SLOT_LENGTH"] = base_slot_length
+    
+
     if includes:
         add(fd, ["#include <{}>".format(v) for v in sorted(includes)])
         add(fd)
