@@ -350,8 +350,8 @@ def gen_kernel_deployment_h(fd, config):
         includes.add("core/schedvalues.h")
 
     global_scheduler = get_option_or(config, "kernel.scheduler.policy", "TIMESLICE").upper()
-    if global_scheduler not in ["TIMESLICE", "PPS"]:
-        raise Exception("only TIMESLICE and PPS schedulers are implemented right now")
+    if global_scheduler not in ["TIMESLICE", "PPS", "PEDF"]:
+        raise Exception("only TIMESLICE, PPS and PEDF schedulers are implemented right now")
     if global_scheduler != "TIMESLICE":
         configs["GLOBAL_SCHEDULER"] = "POK_SCHED_GLOBAL_{}".format(global_scheduler)
         includes.add("core/schedvalues.h")
