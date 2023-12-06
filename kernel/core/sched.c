@@ -239,10 +239,6 @@ uint8_t pok_elect_partition() {
       next_partition =
           sched_partiton_func(pok_partitions, pok_current_partition);
     }
-#if defined(POK_NEEDS_DEBUG) && defined(POK_CONFIG_GLOBAL_SCHEDULER) &&        \
-    POK_CONFIG_GLOBAL_SCHEDULER != POK_SCHED_GLOBAL_TIMESLICE
-    printf("\nScheduling partition %d\n", next_partition);
-#endif
   }
 #endif /* POK_CONFIG_NB_PARTITIONS > 1 */
 
@@ -873,6 +869,10 @@ uint8_t pok_sched_part_global_pps(pok_partition_t pok_partitions[],
     }
   }
 
+#if defined(POK_NEEDS_DEBUG)
+  printf("\nScheduling partition %d\n", next_partition);
+#endif
+
   return next_partition;
 }
 
@@ -888,7 +888,7 @@ void caculate_and_update_deadline(pok_partition_t pok_partitions[]) {
        * reflect the desired behavior. We need an appropriate attribute, such as
        * 'current_deadline', that is updated with the period of the thread. */
       if (thread.state == POK_STATE_RUNNABLE && thread.deadline < deadline) {
-        deadline = thread->deadline;
+        deadline = thread.deadline;
       }
     }
     pok_partitions[i].deadline = deadline;
@@ -910,6 +910,10 @@ uint8_t pok_sched_part_global_pedf(pok_partition_t pok_partitions[],
       next_partition = i;
     }
   }
+
+#if defined(POK_NEEDS_DEBUG)
+  printf("\nScheduling partition %d\n", next_partition);
+#endif
 
   return next_partition;
 }
