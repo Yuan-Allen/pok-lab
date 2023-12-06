@@ -75,6 +75,8 @@ uint8_t pok_sched_part_global_timeslice(pok_partition_t pok_partitions[],
                                         const uint8_t current_partition);
 uint8_t pok_sched_part_global_pps(pok_partition_t pok_partitions[],
                                   const uint8_t current_partition);
+uint8_t pok_sched_part_global_pedf(pok_partition_t pok_partitions[],
+                                   const uint8_t current_partition);
 
 uint64_t pok_sched_slots[POK_CONFIG_SCHEDULING_NBSLOTS];
 uint8_t pok_sched_slots_allocation[POK_CONFIG_SCHEDULING_NBSLOTS];
@@ -102,6 +104,7 @@ void pok_init_slots() {
 #ifdef POK_CONFIG_GLOBAL_SCHEDULER
   switch ((pok_sched_t)POK_CONFIG_GLOBAL_SCHEDULER) {
   case POK_SCHED_GLOBAL_PPS:
+  case POK_SCHED_GLOBAL_PEDF:
     for (uint8_t i = 0; i < POK_CONFIG_SCHEDULING_NBSLOTS; i++) {
       pok_sched_slots[i] = (uint64_t)POK_CONFIG_BASE_SLOT_LENGTH;
       pok_sched_slots_allocation[i] = i;
@@ -132,6 +135,9 @@ void pok_setup_scheduler_global() {
   switch (POK_CONFIG_GLOBAL_SCHEDULER) {
   case POK_SCHED_GLOBAL_PPS:
     sched_partiton_func = pok_sched_part_global_pps;
+    break;
+  case POK_SCHED_GLOBAL_PEDF:
+    sched_partiton_func = pok_sched_part_global_pedf;
     break;
   default:
     sched_partiton_func = pok_sched_part_global_timeslice;
@@ -835,11 +841,11 @@ uint8_t pok_sched_part_global_timeslice(__attribute__((unused))
   return pok_sched_slots_allocation[pok_sched_current_slot];
 }
 
-// Calculate priority for each partition
+// Calculate priority for each partition.
 // The priority is the sum of all RUNNABLE threads' priority in the partition.
 void caculate_and_update_priority(pok_partition_t pok_partitions[]) {
   for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
-    uint32_t priority = 0;
+    uint8_t priority = 0;
     for (uint32_t j = 0; j < pok_partitions[i].nthreads; j++) {
       if (pok_threads[pok_partitions[i].thread_index_low + j].state ==
           POK_STATE_RUNNABLE) {
@@ -854,7 +860,7 @@ void caculate_and_update_priority(pok_partition_t pok_partitions[]) {
 uint8_t pok_sched_part_global_pps(pok_partition_t pok_partitions[],
                                   const uint8_t current_partition) {
   uint8_t next_partition = current_partition;
-  uint32_t max_priority = 0;
+  uint8_t max_priority = 0;
 
   // Activate waiting threads, or some partitions may never be scheduled.
   activate_waiting_threads();
@@ -863,6 +869,44 @@ uint8_t pok_sched_part_global_pps(pok_partition_t pok_partitions[],
   for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
     if (pok_partitions[i].priority > max_priority) {
       max_priority = pok_partitions[i].priority;
+      next_partition = i;
+    }
+  }
+
+  return next_partition;
+}
+
+// Calculate deadline for each partition.
+// The deadline is the minimum deadline of all RUNNABLE threads in the
+// partition.
+void caculate_and_update_deadline(pok_partition_t pok_partitions[]) {
+  for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
+    uint64_t deadline = __UINT64_MAX__;
+    for (uint32_t j = 0; j < pok_partitions[i].nthreads; j++) {
+      pok_thread_t thread = pok_threads[pok_partitions[i].thread_index_low + j];
+      /* FIXME: The 'deadline' attribute of the 'thread' structure does not
+       * reflect the desired behavior. We need an appropriate attribute, such as
+       * 'current_deadline', that is updated with the period of the thread. */
+      if (thread.state == POK_STATE_RUNNABLE && thread.deadline < deadline) {
+        deadline = thread->deadline;
+      }
+    }
+    pok_partitions[i].deadline = deadline;
+  }
+}
+
+uint8_t pok_sched_part_global_pedf(pok_partition_t pok_partitions[],
+                                   const uint8_t current_partition) {
+  uint8_t next_partition = current_partition;
+  uint64_t min_deadline = __UINT64_MAX__;
+
+  // Activate waiting threads, or some partitions may never be scheduled.
+  activate_waiting_threads();
+  caculate_and_update_deadline(pok_partitions);
+
+  for (uint8_t i = 0; i < POK_CONFIG_NB_PARTITIONS; i++) {
+    if (pok_partitions[i].deadline < min_deadline) {
+      min_deadline = pok_partitions[i].deadline;
       next_partition = i;
     }
   }
