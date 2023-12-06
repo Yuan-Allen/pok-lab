@@ -127,6 +127,7 @@ void pok_init_slots() {
     pok_sched_slots_allocation[i] =
         (uint8_t[])POK_CONFIG_SCHEDULING_SLOTS_ALLOCATION[i];
   }
+  pok_sched_major_frame = POK_CONFIG_SCHEDULING_MAJOR_FRAME;
 #endif
 }
 
