@@ -24,6 +24,7 @@ typedef enum {
   POK_SCHED_LLF = 5,
   POK_SCHED_STATIC = 6,
   POK_SCHED_GLOBAL_PPS = 7,
+  POK_SCHED_GLOBAL_PEDF = 8,
 } pok_sched_t;
 
 #endif

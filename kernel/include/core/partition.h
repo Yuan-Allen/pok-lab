@@ -111,7 +111,8 @@ typedef struct {
   uint8_t thread_main_proc;
   pok_partition_mode_t mode; /**< Current mode of the partition */
 
-  uint8_t priority; /**< Priority of the partition */
+  uint8_t priority;  /**< Priority of the partition */
+  uint64_t deadline; /**< Deadline of the partition */
 
 #ifdef POK_NEEDS_IO
   uint16_t io_min; /**< If the partition is allowed to perform I/O, the lower
