@@ -5,14 +5,14 @@ class Process:
         self.burst_time = burst_time
         self.started = False
 
-# 打印队列里面所有的进程，包括进程的状态
 def log_queue(queue, current_time):
-    print(f"\n[current time: {current_time}]")
+    print(f"[current time: {current_time}]")
     for i, q in enumerate(queue):
         print(f"Queue {i}: ", end="")
         for p in q:
             print(f"[name: {p.name}, burst_time: {p.burst_time}] ", end="")
         print()
+    print()
 
 def mlfq_schedule(queue, completed_processes, current_time):
     # Select a process from the queue to execute
@@ -39,7 +39,7 @@ def mlfq_schedule(queue, completed_processes, current_time):
                     for p in q:
                         queue[0].append(p)
                     q.clear()
-                print(f"\nReinserted all processes to the highest priority queue at time {current_time}")
+                print(f"Reinserted all processes to the highest priority queue at time {current_time}\n")
 
             # Only execute one process per call to the schedule function
             break
@@ -72,15 +72,16 @@ def run(processes, queue_num=4, reinsert_interval=5):
 
     return completed_processes
 
-# Test case
-processes = [
-    Process("P1", 0, 6),
-    Process("P2", 2, 5),
-    Process("P3", 4, 8),
-    Process("P4", 6, 2)
-]
+if __name__ == "__main__":
+    # Test case
+    processes = [
+        Process("P1", 0, 6),
+        Process("P2", 2, 5),
+        Process("P3", 4, 8),
+        Process("P4", 6, 2)
+    ]
 
-completed_processes = run(processes)
+    completed_processes = run(processes)
 
-for process in completed_processes:
-    print(f"Process {process.name} completed")
+    for process in completed_processes:
+        print(f"Process {process.name} completed")
