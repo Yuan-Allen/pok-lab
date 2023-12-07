@@ -287,4 +287,142 @@ kernel:
         #       duration: 1s
         #     - partition: pr3
         #       duration: 1s
-        ```
+```
+
+## 动态创建线程的实现
+POK将创建线程的系统调用封装为用户调用，用户态下可以直接在调用线程创建函数创建线程。
+
+在POK的机制中，只有分区的状态处于`POK_PARTITION_MODE_INIT_COLD`或`POK_PARTITION_MODE_INIT_WARM`时，才能够进行线程的创建。一旦通过设定分区状态为`POK_PARTITION_MODE_NORMAL`启动分区使各线程开始运行后，就不能再创建新线程。
+
+```c++
+pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
+                                      const pok_thread_attr_t *attr,
+                                      const uint8_t partition_id) {
+  ...                                      
+  if ((pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_COLD) &&
+      (pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_WARM)) {
+    return POK_ERRNO_MODE;
+  }
+  ...
+}
+```
+
+为实现动态创建线程，需要为`pok_thread_attr_t`和`pok_thread_t`增加`bool_t`类型的属性`is_dynamic`，`is_dynamic = TRUE`表示线程是动态线程，可以在分区启动后创建。对于分区启动后创建的线程，其`next_activation_time`应当设置为当前时间刻加上其周期，即`period + POK_GETTICK()`，`weak_up_time`应当为当前时间刻`POK_GETTICK()`。具体代码改动如下：
+
+```c++
+pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
+                                      const pok_thread_attr_t *attr,
+                                      const uint8_t partition_id) {
+  ...                                      
+  if ((pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_COLD)
+      && (pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_WARM)
+      /* if the thread is dynamic, !attr->is_dynamic will be FALSE. */
+      && (!attr->dynamic)) {
+      return POK_ERRNO_MODE;
+  }
+  ...
+  if (attr->period > 0) {
+      pok_threads[id].period = attr->period;
+      pok_threads[id].next_activation = POK_GETTICK() + attr->period;
+  }
+  ...
+  pok_threads[id].wakeup_time = POK_GETTICK();
+  ...
+}
+```
+
+为测试修改后的POK是否能正常动态创建线程，编写了一测试用例。其中`main_thread`每隔`5s`创建一新线程，共创建4个新线程，4个新线程的`period`、`time_capacity`相同，优先级依次递增。各线程的任务均为`while(1){}`的死循环。
+
+```c++
+void *main_thread() {
+  const uint64_t period = 5e9;
+  uint64_t time_capacity = 2;
+  pok_thread_attr_t tattr;
+
+  for (uint8_t priority = 1; priority <= 4; priority++) {
+    uint32_t tid;
+    memset(&tattr, 0, sizeof(tattr));
+    tattr.priority = priority;
+    tattr.time_capacity = time_capacity;
+    tattr.period = period;
+    tattr.entry = task;
+    tattr.is_dynamic = TRUE;
+
+    pok_ret_t ret;
+    ret = pok_thread_create(&tid, &tattr);
+    printf("[P1] pok_thread_create (%d) return=%d\n", priority + 1, ret);
+    pok_thread_sleep(5e6);
+  }
+}
+```
+
+代码运行结果如下：
+
+```
+POK kernel initialized
+--- Scheduling processor: 0
+    scheduling thread 1 (priority 0)
+    non-ready: 0 (1/stopped), 2 (0/stopped), 3 (0/stopped), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped), 7 (0/stopped),)
+[P1] pok_thread_create (2) return=0
+--- Scheduling processor: 0
+    scheduling thread 2 (priority 1)
+    non-ready: 0 (1/stopped), 1 (0/waiting), 3 (0/stopped), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped), 7 (0/stopped),)
+--- Scheduling processor: 0
+    scheduling idle thread
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (0/stopped), 4 (0/stopped), 5 (0/stopped))
+--- Scheduling processor: 0
+    scheduling thread 2 (priority 1)
+    other ready:  1 (0)
+    non-ready: 0 (1/stopped), 3 (0/stopped), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped), 7 (0/stopped), 8 (0/stopped),)
+--- Scheduling processor: 0
+    scheduling thread 1 (priority 0)
+    non-ready: 0 (1/stopped), 2 (1/waiting next activation), 3 (0/stopped), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped))
+[P1] pok_thread_create (3) return=0
+--- Scheduling processor: 0
+    scheduling thread 3 (priority 2)
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped))
+--- Scheduling processor: 0
+    scheduling idle thread
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (0/stopped)
+--- Scheduling processor: 0
+    scheduling thread 2 (priority 1)
+    non-ready: 0 (1/stopped), 1 (0/waiting), 3 (2/waiting next activation), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped))
+--- Scheduling processor: 0
+    scheduling idle thread
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (0/stopped)
+--- Scheduling processor: 0
+    scheduling thread 3 (priority 2)
+    other ready:  1 (0)
+    non-ready: 0 (1/stopped), 2 (1/waiting next activation), 4 (0/stopped), 5 (0/stopped), 6 (0/stopped), 7 (0/stopped))
+--- Scheduling processor: 0
+    scheduling thread 1 (priority 0)
+    non-ready: 0 (1/stopped), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (0/stopped), 5 (0/stopped)
+[P1] pok_thread_create (4) return=0
+--- Scheduling processor: 0
+    scheduling thread 4 (priority 3)
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (2/waiting next activation), 5 (0/stopped)
+--- Scheduling processor: 0
+    scheduling idle thread
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (3/waiting)
+--- Scheduling processor: 0
+    scheduling thread 2 (priority 1)
+    non-ready: 0 (1/stopped), 1 (0/waiting), 3 (2/waiting next activation), 4 (3/waiting next activation), 5 (0/stopped)
+--- Scheduling processor: 0
+    scheduling idle thread
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (3/waiting)
+--- Scheduling processor: 0
+    scheduling thread 3 (priority 2)
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 4 (3/waiting next activation), 5 (0/stopped)
+--- Scheduling processor: 0
+    scheduling idle thread
+    non-ready: 0 (1/stopped), 1 (0/waiting), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (3/waiting)
+--- Scheduling processor: 0
+    scheduling thread 4 (priority 3)
+    other ready:  1 (0)
+    non-ready: 0 (1/stopped), 2 (1/waiting next activation), 3 (2/waiting next activation), 5 (0/stopped), 6 (0/stopped)
+--- Scheduling processor: 0
+    scheduling thread 1 (priority 0)
+    non-ready: 0 (1/stopped), 2 (1/waiting next activation), 3 (2/waiting next activation), 4 (3/waiting next activation)
+```
+
+分析日志，主线程运行后创建了优先级为1的线程2，然后POK调度线程2运行；此后主线程又创建了优先级为2的线程3，调度器则先后调度线程3、线程2运行；然后主线程创建了线程4，调度器先后调度了线程4、线程2、线程3运行（之所以先调度优先级较低的线程2，是因为线程2比线程3更早到达）。由运行结果可以看出，修改后的POK支持动态创建线程。
