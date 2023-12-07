@@ -20,7 +20,8 @@ partitions:
       threads:
           count: 3
           features: [sleep, suspend]
-      size: 130kB
+      scheduler: pps
+      size: 130k
       objects: ["main.o", "activity.o"]
 
 kernel:

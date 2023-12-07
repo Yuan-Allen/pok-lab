@@ -4,6 +4,9 @@
 #ifndef __POK_KERNEL_GENERATED_DEPLOYMENT_H_
 #define __POK_KERNEL_GENERATED_DEPLOYMENT_H_
 
+#include <core/schedvalues.h>
+
+#define POK_CONFIG_BASE_SLOT_LENGTH 1000000000
 #define POK_CONFIG_NB_PARTITIONS 1
 #define POK_CONFIG_NB_PROCESSORS 1
 #define POK_CONFIG_NB_THREADS 5
@@ -28,10 +31,10 @@
 
 #define POK_NEEDS_CONSOLE 1
 #define POK_NEEDS_DEBUG 1
+#define POK_NEEDS_SCHED_WRR 1
 #define POK_NEEDS_THREAD_SLEEP 1
 #define POK_NEEDS_THREAD_SUSPEND 1
 #define POK_NEEDS_TIME 1
-#define POK_NEEDS_SCHED_WRR 1
 
 typedef enum { pok_part_identifier_pr1 = 0 } pok_part_identifiers_t;
 
