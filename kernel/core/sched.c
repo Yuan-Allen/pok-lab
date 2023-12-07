@@ -303,10 +303,13 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
 
       if ((thread->state == POK_STATE_WAIT_NEXT_ACTIVATION) &&
           (thread->next_activation <= now)) {
+        //传入的相对deadline，周期任务到达时要计算新的绝对ddl
+        thread->ddl = thread->next_activation + thread->deadline;
         assert(thread->time_capacity);
         thread->state = POK_STATE_RUNNABLE;
         thread->remaining_time_capacity = thread->time_capacity;
         thread->next_activation = thread->next_activation + thread->period;
+
       }
     }
   }
@@ -757,6 +760,87 @@ uint32_t pok_sched_part_pps(const uint32_t index_low,
 }
 #endif // POK_NEEDS_SCHED_PPS
 
+
+#ifdef POK_NEEDS_SCHED_PEDF
+uint32_t pok_sched_part_pedf(const uint32_t index_low,
+                               const uint32_t index_high,
+                               const uint32_t prev_thread,
+                               const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  uint64_t earliest_ddl = 0;
+  uint32_t max_thread = IDLE_THREAD;
+  uint8_t current_proc = pok_get_proc_id();
+
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        (pok_threads[i].ddl < earliest_ddl || earliest_ddl <= 0)) {
+      earliest_ddl = pok_threads[i].ddl;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = earliest_ddl > 0 ? max_thread : IDLE_THREAD;
+
+  #ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+                "(ddl "
+                "%llu)\n",
+                current_proc, elected, pok_threads[elected].ddl);
+  #endif
+
+  return elected;
+}
+#endif // POK_NEEDS_SCHED_PEDF
+
+
+#ifdef POK_NEEDS_SCHED_WRR
+uint32_t pok_sched_part_wrr(const uint32_t index_low,
+                               const uint32_t index_high,
+                               const uint32_t prev_thread,
+                               const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  int32_t max_prio = -1;
+  uint32_t max_thread = current_thread;
+  uint8_t current_proc = pok_get_proc_id();
+
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        pok_threads[i].priority > max_prio) {
+      max_prio = pok_threads[i].priority;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = max_prio >= 0 ? max_thread : IDLE_THREAD;
+
+  #ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+                "(priority "
+                "%d)\n",
+                current_proc, elected, pok_threads[elected].priority);
+  #endif
+
+  return elected;
+}
+#endif // POK_NEEDS_SCHED_WRR
 
 uint32_t pok_sched_part_rr(const uint32_t index_low, const uint32_t index_high,
                            const uint32_t prev_thread,

@@ -68,6 +68,18 @@ void pok_partition_setup_scheduler(const uint8_t pid) {
     printf("POK_SCHED_PPS : partition %d\n" , pid);
     break;
 #endif // POK_NEEDS_SCHED_PPS
+#ifdef POK_NEEDS_SCHED_PEDF
+  case POK_SCHED_PEDF:
+    pok_partitions[pid].sched_func = &pok_sched_part_pedf;
+    printf("POK_SCHED_PEDF : partition %d\n" , pid);
+    break;
+#endif // POK_NEEDS_SCHED_PEDF
+#ifdef POK_NEEDS_SCHED_WRR
+  case POK_SCHED_WRR:
+    pok_partitions[pid].sched_func = &pok_sched_part_wrr;
+    printf("POK_SCHED_WRR : partition %d\n" , pid);
+    break;
+#endif // POK_NEEDS_SCHED_WRR
 
     /*
      * Default scheduling algorithm is Round Robin.
