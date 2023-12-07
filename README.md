@@ -2,19 +2,23 @@
 
 This is the project for the Real-Time Systems and Scheduling course at SJTU SE.
 
-# Prerequisites
+## Documentation
+
+The lab reports are accessible at [doc/report/design-report](doc/report/design-report) and [doc/report/test-report](doc/report/test-report).
+
+## Prerequisites
 
 Ensure you have the necessary prerequisites and dependencies installed by referring to the documentation at https://pok-kernel.github.io/usage/.
 
-# Usage
+## Usage
 
-## Normal run
+### Normal run
 To run the project in normal mode, use the following command:
 ```
 make run
 ```
 
-## Run in `-nographic` mode
+### Run in `-nographic` mode
 
 For running QEMU in `-nographic` mode, use the following command.
 ```

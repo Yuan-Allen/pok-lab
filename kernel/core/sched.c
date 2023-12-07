@@ -1224,11 +1224,8 @@ void caculate_and_update_deadline(pok_partition_t pok_partitions[]) {
     uint64_t deadline = __UINT64_MAX__;
     for (uint32_t j = 0; j < pok_partitions[i].nthreads; j++) {
       pok_thread_t thread = pok_threads[pok_partitions[i].thread_index_low + j];
-      /* FIXME: The 'deadline' attribute of the 'thread' structure does not
-       * reflect the desired behavior. We need an appropriate attribute, such as
-       * 'current_deadline', that is updated with the period of the thread. */
-      if (thread.state == POK_STATE_RUNNABLE && thread.deadline < deadline) {
-        deadline = thread.deadline;
+      if (thread.state == POK_STATE_RUNNABLE && thread.ddl < deadline) {
+        deadline = thread.ddl;
       }
     }
     pok_partitions[i].deadline = deadline;
