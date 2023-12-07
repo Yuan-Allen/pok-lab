@@ -12,23 +12,9 @@
  *                                      Copyright (c) 2007-2022 POK team
  */
 
-#ifndef __POK_SCHEDVALUES_H__
-#define __POK_SCHEDVALUES_H__
-
-typedef enum {
-  POK_SCHED_FIFO = 0,
-  POK_SCHED_RR = 1,
-  POK_SCHED_GLOBAL_TIMESLICE = 2,
-  POK_SCHED_RMS = 3,
-  POK_SCHED_EDF = 4,
-  POK_SCHED_LLF = 5,
-  POK_SCHED_STATIC = 6,
-  POK_SCHED_PPS = 7,
-  POK_SCHED_PEDF = 8,
-  POK_SCHED_WRR = 9,
-  // POK_SCHED_RR = 10,
-  POK_SCHED_GLOBAL_PPS = 11,
-  POK_SCHED_GLOBAL_PEDF = 12,
-} pok_sched_t;
+#ifndef __POK_USER_GENERATED_ACTIVITY_H_
+#define __POK_USER_GENERATED_ACTIVITY_H_
+void *job1();
+void *job2();
 
 #endif
