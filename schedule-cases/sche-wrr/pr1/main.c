@@ -36,7 +36,7 @@ int main() {
 
   // tattr.priority = 88;
   tattr.entry = job2;
-  tattr.time_capacity = 30;
+  tattr.time_capacity = 35;
   tattr.weight = 10;
   tattr.period = 1000000000;
 

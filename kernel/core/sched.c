@@ -832,9 +832,6 @@ uint32_t pok_sched_part_wrr(const uint32_t index_low, const uint32_t index_high,
            pok_threads[current_thread].remaining_timeslice);
 #endif
     return current_thread;
-  } else if (current_thread != IDLE_THREAD) {
-    pok_threads[current_thread].remaining_timeslice =
-        pok_threads[current_thread].weight;
   }
 
   uint32_t i = from;
@@ -847,23 +844,43 @@ uint32_t pok_sched_part_wrr(const uint32_t index_low, const uint32_t index_high,
     }
   }
 
-  while (i != from) {
+  do {
     if (pok_threads[i].state == POK_STATE_RUNNABLE &&
-        pok_threads[i].processor_affinity == current_proc) {
+        pok_threads[i].processor_affinity == current_proc && i != IDLE_THREAD) {
 #ifdef POK_NEEDS_DEBUG
       printf("--- Scheduling processor: %hhd\n    elected thread %d "
              "(remaining_timeslice "
              "%u)\n",
              current_proc, i, pok_threads[i].remaining_timeslice);
 #endif
-
+      if (current_thread != IDLE_THREAD) {
+        pok_threads[current_thread].remaining_timeslice =
+            pok_threads[current_thread].weight;
+      }
       return i;
     }
     i++;
     if (i >= index_high) {
       i = index_low;
     }
+  } while (i != from);
+
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].processor_affinity == current_proc &&
+      current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  scheduling self-thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+
+    return current_thread;
   }
+
 #ifdef POK_NEEDS_DEBUG
   printf("--- Scheduling processor: %hhd\n    elected thread %d "
          "(IDLE_THREAD remaining_timeslice "
@@ -871,17 +888,21 @@ uint32_t pok_sched_part_wrr(const uint32_t index_low, const uint32_t index_high,
          current_proc, IDLE_THREAD,
          pok_threads[IDLE_THREAD].remaining_timeslice);
 #endif
+  if (current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+  }
   return IDLE_THREAD;
 }
 #endif // POK_NEEDS_SCHED_WRR
 
-
 #ifdef POK_NEEDS_SCHED_PWRR
-uint32_t pok_sched_part_pwrr(const uint32_t index_low, const uint32_t index_high,
-                            const uint32_t prev_thread,
-                            const uint32_t current_thread) {
+uint32_t pok_sched_part_pwrr(const uint32_t index_low,
+                             const uint32_t index_high,
+                             const uint32_t prev_thread,
+                             const uint32_t current_thread) {
   uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
-  //preempt by higher priority
+  // preempt by higher priority
   int32_t current_prio = pok_threads[current_thread].priority;
   int32_t max_prio = -1;
   uint32_t max_thread = current_thread;
@@ -907,21 +928,20 @@ uint32_t pok_sched_part_pwrr(const uint32_t index_low, const uint32_t index_high
   } while (i != from);
 
   uint32_t elected = max_prio >= 0 ? max_thread : IDLE_THREAD;
-  if(pok_threads[elected].priority > current_prio){
+  if (pok_threads[elected].priority > current_prio) {
     if (current_thread != IDLE_THREAD) {
-    pok_threads[current_thread].remaining_timeslice =
-        pok_threads[current_thread].weight;
+      pok_threads[current_thread].remaining_timeslice =
+          pok_threads[current_thread].weight;
     }
-    #ifdef POK_NEEDS_DEBUG
+#ifdef POK_NEEDS_DEBUG
     printf("--- Scheduling processor: %hhd\n  preemptive thread %d "
            "(remaining_timeslice "
            "%u)\n",
-           current_proc, elected,
-           pok_threads[elected].remaining_timeslice);
-    #endif
+           current_proc, elected, pok_threads[elected].remaining_timeslice);
+#endif
     return elected;
   }
-  //wrr
+  // wrr
 
   if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
       pok_threads[current_thread].remaining_time_capacity > 0 &&
@@ -965,6 +985,22 @@ uint32_t pok_sched_part_pwrr(const uint32_t index_low, const uint32_t index_high
     if (i >= index_high) {
       i = index_low;
     }
+  }
+
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].processor_affinity == current_proc &&
+      current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  scheduling self-thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+
+    return current_thread;
   }
 #ifdef POK_NEEDS_DEBUG
   printf("--- Scheduling processor: %hhd\n    elected thread %d "
