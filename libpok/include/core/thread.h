@@ -35,6 +35,7 @@ typedef struct {
   uint32_t stack_size;
   uint32_t state;
   bool_t is_dynamic;
+  uint32_t weight;
 } pok_thread_attr_t;
 
 void pok_thread_init(void);

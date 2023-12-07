@@ -62,6 +62,8 @@ typedef struct {
   uint8_t base_priority;
   uint8_t processor_affinity;
   uint64_t ddl;
+  uint32_t weight;
+  uint32_t remaining_timeslice;
   /* stack pointer
    * FIXME: this is platform-dependent code, we have to handle that ! */
 } pok_thread_t;
@@ -76,6 +78,7 @@ typedef struct {
   uint32_t stack_size;
   pok_state_t state;
   bool_t is_dynamic;
+  uint32_t weight;
 } pok_thread_attr_t;
 /*
  * Attributes given to create a thread
