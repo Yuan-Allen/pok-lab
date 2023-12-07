@@ -1,0 +1,35 @@
+#                               POK header
+#
+# The following file is a part of the POK project. Any modification should
+# be made according to the POK licence. You CANNOT use this file or a part
+# of a file for your own project.
+#
+# For more information on the POK licence, please see our LICENCE FILE
+#
+# Please follow the coding guidelines described in doc/CODING_GUIDELINES
+#
+#                                      Copyright (c) 2007-2022 POK team
+
+target:
+    arch: x86
+    bsp: x86-qemu
+
+partitions:
+    - name: pr1
+      features: [timer, libc]
+      scheduler: STATIC
+      semaphores: 1
+      threads:
+          count: 32
+          features: [sleep]
+      size: 300kB
+      objects: ["main.o"]
+
+kernel:
+    features: [debug]
+    scheduler:
+        major_frame: 10s
+        slots:
+            - partition: pr1
+              duration: 10s
+    

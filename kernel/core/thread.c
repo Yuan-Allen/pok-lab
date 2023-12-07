@@ -134,7 +134,9 @@ pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
    * We can create a thread only if the partition is in INIT mode
    */
   if ((pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_COLD) &&
-      (pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_WARM)) {
+      (pok_partitions[partition_id].mode != POK_PARTITION_MODE_INIT_WARM) &&
+      /* if the thread is dynamic, !attr->is_dynamic will be FALSE. */
+      (!attr->is_dynamic)) {
     return POK_ERRNO_MODE;
   }
 
@@ -161,7 +163,7 @@ pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
 
   if (attr->period > 0) {
     pok_threads[id].period = attr->period;
-    pok_threads[id].next_activation = attr->period;
+    pok_threads[id].next_activation = POK_GETTICK() + attr->period;
   }
 
   if (attr->deadline > 0) {
@@ -194,7 +196,7 @@ pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
       partition_id, pok_partitions[partition_id].thread_index);
 
   pok_threads[id].state = POK_STATE_RUNNABLE;
-  pok_threads[id].wakeup_time = 0;
+  pok_threads[id].wakeup_time = POK_GETTICK();
   pok_threads[id].sp = pok_space_context_create(
       partition_id, (uint32_t)attr->entry, pok_threads[id].processor_affinity,
       stack_vaddr, 0xdead, 0xbeaf);
