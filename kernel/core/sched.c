@@ -674,6 +674,90 @@ uint32_t pok_sched_part_static(const uint32_t index_low,
 }
 #endif // POK_NEEDS_SCHED_STATIC
 
+#ifdef POK_NEEDS_SCHED_PPS
+uint32_t pok_sched_part_pps(const uint32_t index_low,
+                               const uint32_t index_high,
+                               const uint32_t prev_thread,
+                               const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  int32_t max_prio = -1;
+  uint32_t max_thread = current_thread;
+  uint8_t current_proc = pok_get_proc_id();
+
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        pok_threads[i].priority > max_prio) {
+      max_prio = pok_threads[i].priority;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = max_prio >= 0 ? max_thread : IDLE_THREAD;
+
+  #ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+                "(priority "
+                "%d)\n",
+                current_proc, elected, pok_threads[elected].priority);
+    // if (elected != current_thread &&
+    //     (elected != IDLE_THREAD || current_thread != IDLE_THREAD)) {
+    //   uint32_t non_ready = 0;
+    //   if (elected == IDLE_THREAD) {
+    //     printf("--- Scheduling processor: %hhd\n    scheduling idle thread\n",
+    //           current_proc);
+    //     non_ready = index_high - index_low;
+    //   } else {
+    //     uint32_t first = 1;
+    //     printf("--- Scheduling processor: %hhd\n    scheduling thread %d "
+    //           "(priority "
+    //           "%d)\n",
+    //           current_proc, elected, pok_threads[elected].priority);
+    //     for (uint32_t i = index_low; i < index_high; i++) {
+    //       if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+    //           pok_threads[i].processor_affinity == current_proc) {
+    //         if (i != elected) {
+    //           printf("%s %d (%d)", first ? "    other ready: " : ",", i,
+    //                 pok_threads[i].priority);
+    //           first = 0;
+    //         }
+    //       } else {
+    //         non_ready++;
+    //       }
+    //     }
+    //     if (!first) {
+    //       printf("\n");
+    //     }
+    //   }
+    //   if (non_ready) {
+    //     printf("    non-ready:");
+    //     uint32_t first = 1;
+    //     for (uint32_t i = index_low; i < index_high; i++) {
+    //       if (pok_threads[i].state != POK_STATE_RUNNABLE &&
+    //           pok_threads[i].processor_affinity == current_proc) {
+    //         printf("%s %d (%d/%s)", first ? "" : ",", i, pok_threads[i].priority,
+    //               state_names[pok_threads[i].state]);
+    //         first = 0;
+    //       }
+    //     }
+    //     printf("\n");
+    //   }
+    // }
+  #endif
+
+  return elected;
+}
+#endif // POK_NEEDS_SCHED_PPS
+
+
 uint32_t pok_sched_part_rr(const uint32_t index_low, const uint32_t index_high,
                            const uint32_t prev_thread,
                            const uint32_t current_thread) {
