@@ -176,7 +176,7 @@ pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
     pok_threads[id].deadline = attr->deadline;
     pok_threads[id].ddl = attr->deadline;
   }
-  
+
   if (attr->weight > 0) {
     pok_threads[id].weight = attr->weight;
     pok_threads[id].remaining_timeslice = attr->weight;

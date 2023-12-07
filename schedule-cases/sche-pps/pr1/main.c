@@ -28,7 +28,7 @@ int main() {
   tattr.entry = job1;
   tattr.processor_affinity = 0;
   tattr.time_capacity = 20;
-  tattr.period = 1000000000;
+  tattr.period = 1000000000; 
 
   ret = pok_thread_create(&tid, &tattr);
   printf("[P1] pok_thread_create (1) return=%d\n", ret);
