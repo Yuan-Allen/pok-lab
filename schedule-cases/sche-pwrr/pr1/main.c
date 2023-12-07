@@ -24,17 +24,17 @@ int main() {
   pok_ret_t ret;
   pok_thread_attr_t tattr;
 
-  // tattr.priority = 66;
+  tattr.priority = 66;
   tattr.entry = job1;
   tattr.processor_affinity = 0;
-  tattr.time_capacity = 50;
+  tattr.time_capacity = 20;
   tattr.period = 1000000000;
   tattr.weight = 5;
 
   ret = pok_thread_create(&tid, &tattr);
   printf("[P1] pok_thread_create (1) return=%d\n", ret);
 
-  // tattr.priority = 88;
+  tattr.priority = 88;
   tattr.entry = job2;
   tattr.time_capacity = 30;
   tattr.weight = 10;
