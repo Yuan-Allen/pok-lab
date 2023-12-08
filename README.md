@@ -37,3 +37,7 @@ kill $(cat qemu.pid)
 ## Test cases
 
 The test cases for scheduling are accessible at [`schedule-cases`](schedule-cases/)
+
+## MLFQ
+
+The MLFQ demo are located at [mlfq/mlfq.py](mlfq/mlfq.py).

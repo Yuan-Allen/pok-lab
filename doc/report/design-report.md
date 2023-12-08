@@ -442,7 +442,7 @@ POK kernel initialized
 
 ## MLFQ算法的实现
 
-使用Python实现了一个简单的MLFQ算法，代码如下。
+使用Python实现了一个简单的MLFQ算法，代码位于[../../mlfq/mlfq.py](../../mlfq/mlfq.py)，具体内容如下。
 
 ```Python
 class Process:
