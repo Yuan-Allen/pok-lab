@@ -46,20 +46,6 @@ int main() {
   printf("[P1] pok_thread_create (1) return=%d\n", ret);
 
   pok_partition_set_mode(POK_PARTITION_MODE_NORMAL);
-  while (1) {
-    pok_thread_sleep(8e5);
-    tattr.priority = 255;
-    tattr.entry = urgent_task;
-    tattr.processor_affinity = 0;
-    tattr.time_capacity = 1e2;
-    tattr.period = -1;
-    tattr.is_dynamic = TRUE;
-    tattr.deadline = 2e8;
-
-    ret = pok_thread_create(&tid, &tattr);
-    printf("[P1] pok_thread_create (urgent) return=%d\n", ret);
-    pok_thread_sleep(20e5);
-  }
   pok_thread_wait_infinite();
 
   return (0);
