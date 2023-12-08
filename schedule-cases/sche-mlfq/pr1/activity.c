@@ -12,24 +12,18 @@
  *                                      Copyright (c) 2007-2022 POK team
  */
 
-#ifndef __POK_SCHEDVALUES_H__
-#define __POK_SCHEDVALUES_H__
+#include <core/thread.h>
+#include <libc/stdio.h>
+#include <types.h>
 
-typedef enum {
-  POK_SCHED_FIFO = 0,
-  POK_SCHED_RR = 1,
-  POK_SCHED_GLOBAL_TIMESLICE = 2,
-  POK_SCHED_RMS = 3,
-  POK_SCHED_EDF = 4,
-  POK_SCHED_LLF = 5,
-  POK_SCHED_STATIC = 6,
-  POK_SCHED_PPS = 7,
-  POK_SCHED_PEDF = 8,
-  POK_SCHED_WRR = 9,
-  POK_SCHED_PWRR = 10,
-  POK_SCHED_GLOBAL_PPS = 11,
-  POK_SCHED_GLOBAL_PEDF = 12,
-  POK_SCHED_MLFQ = 20,
-} pok_sched_t;
+void *job1() {
+  while (1) {
+    // printf("P1T1: Hello, prio 66\n");
+  }
+}
 
-#endif
+void *job2() {
+  while (1) {
+    // printf("P1T2: World, prio 88\n");
+  }
+}

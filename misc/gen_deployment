@@ -340,7 +340,7 @@ def gen_kernel_deployment_h(fd, config):
     configs["PARTITIONS_NTHREADS"] = c_list(get_option_or(config, "partitions.threads.count", 1))
     configs["PARTITIONS_NLOCKOBJECTS"] = c_list(lockobjects)
     schedulers = [v.upper() for v in get_option_or(config, "partitions.scheduler", "rr")]
-    if any(scheduler not in ["RR", "RMS", "STATIC", "WRR", "PPS", "PEDF", "PWRR" ] for scheduler in schedulers):
+    if any(scheduler not in ["RR", "RMS", "STATIC", "WRR", "PPS", "PEDF", "PWRR", "MLFQ" ] for scheduler in schedulers):
         raise Exception("only RR, STATIC and RMS schedulers are implemented right now")
     non_rr = set(scheduler for scheduler in schedulers if scheduler != "RR")
     if non_rr:

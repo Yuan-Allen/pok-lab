@@ -1130,7 +1130,7 @@ uint32_t pok_sched_part_mlfq(const uint32_t index_low,
                              const uint32_t current_thread) {
   uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
 
-  int32_t current_prio = pok_threads[current_thread].mlfq_level;
+  // int32_t current_prio = pok_threads[current_thread].mlfq_level;
   int32_t max_prio = -1;
   uint32_t max_thread = current_thread;
   uint8_t current_proc = pok_get_proc_id();
