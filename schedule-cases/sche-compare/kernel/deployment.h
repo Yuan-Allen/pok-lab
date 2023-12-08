@@ -9,13 +9,13 @@
 #define POK_CONFIG_BASE_SLOT_LENGTH 1000000000
 #define POK_CONFIG_NB_PARTITIONS 1
 #define POK_CONFIG_NB_PROCESSORS 1
-#define POK_CONFIG_NB_THREADS 5
+#define POK_CONFIG_NB_THREADS 7
 #define POK_CONFIG_PARTITIONS_NLOCKOBJECTS                                     \
   { 0 }
 #define POK_CONFIG_PARTITIONS_NTHREADS                                         \
-  { 3 }
+  { 5 }
 #define POK_CONFIG_PARTITIONS_SCHEDULER                                        \
-  { POK_SCHED_PWRR }
+  { POK_SCHED_WRR }
 #define POK_CONFIG_PARTITIONS_SIZE                                             \
   { 133120 }
 #define POK_CONFIG_PROCESSOR_AFFINITY                                          \
@@ -31,7 +31,8 @@
 
 #define POK_NEEDS_CONSOLE 1
 #define POK_NEEDS_DEBUG 1
-#define POK_NEEDS_SCHED_PWRR 1
+#define POK_NEEDS_SCHED_INFO 1
+#define POK_NEEDS_SCHED_WRR 1
 #define POK_NEEDS_THREAD_SLEEP 1
 #define POK_NEEDS_THREAD_SUSPEND 1
 #define POK_NEEDS_TIME 1

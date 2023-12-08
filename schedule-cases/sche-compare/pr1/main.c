@@ -24,24 +24,44 @@ int main() {
   pok_ret_t ret;
   pok_thread_attr_t tattr;
 
-  tattr.priority = 66;
-  tattr.entry = job1;
+  tattr.priority = 44;
+  tattr.entry = temperature_check;
   tattr.processor_affinity = 0;
-  tattr.time_capacity = 20;
-  tattr.period = 1000000000;
+  tattr.time_capacity = 4;
+  tattr.deadline = 20000000;
+  tattr.period = 20000000;
   tattr.weight = 5;
 
   ret = pok_thread_create(&tid, &tattr);
-  printf("[P1] pok_thread_create (1) return=%d\n", ret);
+  printf("[P1] pok_thread_create (1)temperature_check return=%d\n", ret);
 
-  tattr.priority = 88;
-  tattr.entry = job2;
-  tattr.time_capacity = 30;
-  tattr.weight = 10;
-  tattr.period = 1000000000;
+  tattr.priority = 66;
+  tattr.entry = temperature_control;
+  tattr.time_capacity = 11;
+  tattr.deadline = 15000000;
+  tattr.weight = 5;
+  tattr.period = 20000000;
 
   ret = pok_thread_create(&tid, &tattr);
-  printf("[P1] pok_thread_create (2) return=%d\n", ret);
+  printf("[P1] pok_thread_create (2)temperature_control return=%d\n", ret);
+  tattr.priority = 22;
+  tattr.entry = data_display;
+  tattr.time_capacity = 2;
+  tattr.deadline = 18000000;
+  tattr.weight = 5;
+  tattr.period = 20000000;
+
+  ret = pok_thread_create(&tid, &tattr);
+  printf("[P1] pok_thread_create (3)data_display return=%d\n", ret);
+  tattr.priority = 88;
+  tattr.entry = alarm;
+  tattr.time_capacity = 2;
+  tattr.deadline = 10000000;
+  tattr.weight = 5;
+  tattr.period = 20000000;
+
+  ret = pok_thread_create(&tid, &tattr);
+  printf("[P1] pok_thread_create (4)alarm return=%d\n", ret);
 
   pok_partition_set_mode(POK_PARTITION_MODE_NORMAL);
   pok_thread_wait_infinite();

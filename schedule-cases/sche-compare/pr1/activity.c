@@ -15,15 +15,27 @@
 #include <core/thread.h>
 #include <libc/stdio.h>
 #include <types.h>
-
-void *job1() {
+void *temperature_check() {
+  printf("check temp\n");
   while (1) {
-    // printf("P1T1: Hello, prio 66\n");
+    //
   }
 }
-
-void *job2() {
+void *temperature_control() {
+  printf("adjust temp\n");
   while (1) {
-    // printf("P1T2: World, prio 88\n");
+    //
+  }
+}
+void *data_display() {
+  printf("display\n");
+  while (1) {
+    //
+  }
+}
+void *alarm() {
+  printf("ALARM!!!\n");
+  while (1) {
+    //
   }
 }
