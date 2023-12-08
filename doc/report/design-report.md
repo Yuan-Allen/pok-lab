@@ -580,3 +580,112 @@ thread [1][0] scheduled at 1004871
   thread [1][3] finished at 902005398, deadline met, next activation: 4554100654843769
 ```
 观察日志，抢占式weighted-round-robin首先轮流调度通常任务和其他任务，通常任务错过deadline，紧急任务生成后，紧急任务立即抢占，独占资源进行执行，并在deadline之前完成，补救了通常任务的miss deadline。由于抢占机制和round-robin的机制的共存，该调度算法既有处理紧急任务的能力，又能够使得一些低优先级的任务能够正常执行不至于饿死。
+## MLFQ算法简述
+
+1. 优先级高的队列比优先级低的队列优先执行。
+
+2. 同一级队列采用Round-Robin运行。
+
+3. 工作进入系统时，放在最高优先级（最上层队列）。
+
+4. 一旦工作用完了其在某一层中的时间配额，就降低其优先级（放入低一级队列）。
+
+5. 经过一段时间，就将系统中所有工作重新加入最高优先级队列。
+
+## MLFQ算法的实现
+
+使用Python实现了一个简单的MLFQ算法，代码如下。
+
+```Python
+class Process:
+    def __init__(self, name, arrival_time, burst_time):
+        self.name = name
+        self.arrival_time = arrival_time
+        self.burst_time = burst_time
+        self.started = False
+
+def log_queue(queue, current_time):
+    print(f"[current time: {current_time}]")
+    for i, q in enumerate(queue):
+        print(f"Queue {i}: ", end="")
+        for p in q:
+            print(f"[name: {p.name}, burst_time: {p.burst_time}] ", end="")
+        print()
+    print()
+
+def mlfq_schedule(queue, completed_processes, current_time):
+    # Select a process from the queue to execute
+    for i in range(len(queue)):
+        if queue[i]:
+            process = queue[i].pop(0)
+            if process.burst_time <= 1:
+                # Process completed
+                current_time += process.burst_time
+                process.burst_time = 0
+                completed_processes.append(process)
+            else:
+                # Process executes for a certain time and then returns to the next level queue
+                current_time += 1
+                process.burst_time -= 1
+                if i+1 == len(queue):
+                    queue[i].append(process)  # Return to the original queue
+                else:
+                    queue[i+1].append(process)
+            
+            # Check if it's time to reinsert all processes to the highest priority queue
+            if current_time % REINSERT_INTERVAL == 0:
+                for q in queue[1:]:
+                    for p in q:
+                        queue[0].append(p)
+                    q.clear()
+                print(f"Reinserted all processes to the highest priority queue at time {current_time}\n")
+
+            # Only execute one process per call to the schedule function
+            break
+
+    return current_time
+
+def run(processes, queue_num=4, reinsert_interval=5):
+    global REINSERT_INTERVAL
+    REINSERT_INTERVAL = reinsert_interval
+
+    # Create multi-level feedback queue
+    queue = [[] for _ in range(queue_num)]
+    current_time = 0
+    completed_processes = []
+
+    while True:
+        for process in processes:
+            if not process.started and process.arrival_time <= current_time:
+                # Add the process to the first queue, which is the highest priority queue
+                queue[0].append(process)
+                process.started = True
+        
+        log_queue(queue, current_time)
+
+        current_time = mlfq_schedule(queue, completed_processes, current_time)
+
+        # Check if all processes have completed
+        if all(process.burst_time == 0 for process in processes):
+            break
+
+    return completed_processes
+
+if __name__ == "__main__":
+    # Test case
+    processes = [
+        Process("P1", 0, 6),
+        Process("P2", 2, 5),
+        Process("P3", 4, 8),
+        Process("P4", 6, 2)
+    ]
+
+    completed_processes = run(processes)
+
+    for process in completed_processes:
+        print(f"Process {process.name} completed")
+```
+
+简单来说，每个时间片检查是否有新的进程到达，并加入最高优先级队列，然后调用`mlfq_schedule`函数。在`mlfq_schedule`中，从高优先级向低优先级遍历队列，然后使其运行一个时间片。如果时间片用完还未执行完成，则将其放入下一优先级的队列。
+
+此外，在一个设定的时间间隔`REINSERT_INTERVAL`后，所有任务都会被重新设定到最高优先级。
