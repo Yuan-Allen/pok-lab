@@ -320,7 +320,7 @@ def gen_kernel_deployment_h(fd, config):
                             ("threads.sleep", "THREAD_SLEEP"), ("threads.suspend", "THREAD_SUSPEND")]:
         if any_has_feature(config, "partitions.{}".format(partopt)):
             needs.add(need)
-    for (opt, need) in [("assert", "ASSERT"),("debug", "DEBUG")]:
+    for (opt, need) in [("assert", "ASSERT"),("debug", "DEBUG"),("sched_info", "SCHED_INFO"),("punish","DDL_PUNISH")]:
         if has_feature(config, "kernel.{}".format(opt)):
             needs.add(need)
     configs["PARTITIONS_SIZE"] = c_list(option_value(config, "partitions.size", decode=to_bytes))

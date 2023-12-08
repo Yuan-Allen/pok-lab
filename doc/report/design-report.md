@@ -289,7 +289,8 @@ kernel:
         #       duration: 1s
 ```
 
-## 动态创建线程的实现
+## 动态添加线程的实现
+
 POK将创建线程的系统调用封装为用户调用，用户态下可以直接在调用线程创建函数创建线程。
 
 在POK的机制中，只有分区的状态处于`POK_PARTITION_MODE_INIT_COLD`或`POK_PARTITION_MODE_INIT_WARM`时，才能够进行线程的创建。一旦通过设定分区状态为`POK_PARTITION_MODE_NORMAL`启动分区使各线程开始运行后，就不能再创建新线程。

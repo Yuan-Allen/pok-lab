@@ -55,7 +55,13 @@ static const char *state_names[] = {
 #endif
 
 extern pok_partition_t pok_partitions[];
-
+#ifdef POK_NEEDS_DDL_PUNISH
+bool_t urgent_task_flag = TRUE;
+void *urgent_task() {
+  while (1) {
+  }
+}
+#endif
 /**
  * \brief The variable that contains the value of partition currently being
  * executed
@@ -278,6 +284,26 @@ void activate_waiting_threads() {
 
 uint32_t pok_elect_thread(uint8_t new_partition_id) {
   uint64_t now = POK_GETTICK();
+#ifdef POK_NEEDS_DDL_PUNISH
+  if ((POK_CURRENT_THREAD.deadline > 0) && (POK_CURRENT_THREAD.ddl < now) &&
+      (urgent_task_flag)) {
+    urgent_task_flag = FALSE;
+    uint32_t tid;
+    pok_ret_t ret;
+    pok_thread_attr_t tattr;
+    tattr.priority = 255;
+    tattr.entry = urgent_task;
+    tattr.processor_affinity = 0;
+    tattr.time_capacity = 1e2;
+    tattr.deadline = 2e8;
+    tattr.weight = 10e8;
+    ret = pok_partition_thread_create(&tid, &tattr, pok_current_partition);
+    printf(
+        "[P1] pok_thread_create (urgent) return=%d at %llu, deadline is %llu\n",
+        ret, POK_GETTICK(), POK_GETTICK() + tattr.deadline);
+  }
+#endif
+
   pok_partition_t *new_partition = &(pok_partitions[new_partition_id]);
 
   /*
@@ -308,6 +334,18 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
         assert(thread->time_capacity);
         thread->state = POK_STATE_RUNNABLE;
         thread->remaining_time_capacity = thread->time_capacity;
+
+#ifdef POK_NEEDS_SCHED_INFO
+        if (thread->deadline > 0) {
+          printf("thread [%u][%u] activated at %u, deadline at %u\n",
+                 (unsigned)pok_current_partition + 1, (unsigned)i,
+                 (unsigned)thread->next_activation, (unsigned)thread->ddl);
+        } else {
+          printf("thread [%u][%u] activated at %u\n",
+                 (unsigned)pok_current_partition + 1, (unsigned)i,
+                 (unsigned)thread->next_activation);
+        }
+#endif
         thread->next_activation = thread->next_activation + thread->period;
       }
     }
@@ -355,6 +393,13 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
       //   POK_CURRENT_THREAD.state = POK_STATE_WAIT_NEXT_ACTIVATION;
       // }
       if (POK_CURRENT_THREAD.time_capacity > 0) {
+#ifdef POK_NEEDS_SCHED_INFO
+        // printf("thread [%u][%u] running at %u \n",
+        //        (unsigned)pok_current_partition + 1,
+        //        (unsigned)(POK_SCHED_CURRENT_THREAD -
+        //                   POK_CURRENT_PARTITION.thread_index_low),
+        //        (unsigned)now);
+#endif
         POK_CURRENT_THREAD.remaining_time_capacity =
             POK_CURRENT_THREAD.remaining_time_capacity - 1;
       }
@@ -364,6 +409,25 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
                  // with non-infinite capacity (could be
                  // infinite with value -1 <--> INFINITE_TIME_CAPACITY)
       {
+
+#ifdef POK_NEEDS_SCHED_INFO
+        if (POK_CURRENT_THREAD.deadline > 0) {
+          printf("thread [%u][%u] finished at %lld, deadline %s, next "
+                 "activation: %lld\n",
+                 (unsigned)pok_current_partition + 1,
+                 (POK_SCHED_CURRENT_THREAD -
+                  POK_CURRENT_PARTITION.thread_index_low),
+                 now, POK_CURRENT_THREAD.ddl >= now ? "met" : "miss",
+                 POK_CURRENT_THREAD.next_activation);
+        } else {
+          printf("Thread [%u][%u] finished at %lld, next activation: %lld\n",
+                 (unsigned)pok_current_partition + 1,
+                 (unsigned)(POK_SCHED_CURRENT_THREAD -
+                            POK_CURRENT_PARTITION.thread_index_low),
+                 now, POK_CURRENT_THREAD.next_activation);
+        }
+#endif
+
         POK_CURRENT_THREAD.state = POK_STATE_WAIT_NEXT_ACTIVATION;
       }
     }
@@ -387,6 +451,15 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
   if (pok_threads[POK_SCHED_CURRENT_THREAD].time_capacity > 0)
     pok_threads[elected].end_time =
         now + pok_threads[elected].remaining_time_capacity;
+
+#ifdef POK_NEEDS_SCHED_INFO
+  if (elected != IDLE_THREAD) {
+    printf("thread [%u][%u] scheduled at %lld\n",
+           (unsigned)pok_current_partition + 1,
+           (unsigned)(elected - POK_CURRENT_PARTITION.thread_index_low),
+           POK_GETTICK());
+  }
+#endif
 
   return elected;
 }
