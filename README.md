@@ -33,3 +33,7 @@ This may be rude if you have other QEMU processes running as well. If so, you ca
 ```
 kill $(cat qemu.pid)
 ```
+
+## Test cases
+
+The test cases for scheduling are accessible at [`schedule-cases`](schedule-cases/)
