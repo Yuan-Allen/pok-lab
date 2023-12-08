@@ -2,6 +2,332 @@
 
 ## 各个调度算法的实现
 
+### 线程调度
+#### 共性修改
+在实现新的线程调度方式时，需要声明并实现新的调度函数，添加新的调度方式枚举类型，配置新的预定义宏等，替换默认的调度方式。
+
+#### 抢占式优先级调度（PPS）
+利用原有的thread参数priority，遍历当前进程的可运行线程,得到并调度到优先级最高的线程。抢占式的实现在于，每一tick结束时进行检测，允许调度到更高优先级的线程。
+
+```c++
+#ifdef POK_NEEDS_SCHED_PPS
+uint32_t pok_sched_part_pps(const uint32_t index_low, const uint32_t index_high,
+                            const uint32_t prev_thread,
+                            const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  int32_t max_prio = -1;
+  uint32_t max_thread = current_thread;
+  uint8_t current_proc = pok_get_proc_id();
+
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        pok_threads[i].priority > max_prio) {
+      max_prio = pok_threads[i].priority;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = max_prio >= 0 ? max_thread : IDLE_THREAD;
+
+#ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+         "(priority "
+         "%d)\n",
+         current_proc, elected, pok_threads[elected].priority);
+#endif
+
+  return elected;
+}
+#endif // POK_NEEDS_SCHED_PPS
+```
+
+
+#### 抢占式EDF调度（PEDF）
+
+抢占式EDF调度的实现与抢占式优先级调度的实现类似，不同的是将更高的优先级替换为更早的deadline。但经过代码阅读，我们发现pok中thread参数deadline实际上是相对deadline，每个周期相同，和EDF中所需的ddl不同，因此我们在thread参数中增加绝对deadline————ddl，其将在每个任务的新周期重置参数时进行更新。
+
+```c++
+//更新ddl
+      if ((thread->state == POK_STATE_WAIT_NEXT_ACTIVATION) &&
+          (thread->next_activation <= now)) {
+        // 传入的相对deadline，周期任务到达时要计算新的绝对ddl
+        thread->ddl = thread->next_activation + thread->deadline;
+        assert(thread->time_capacity);
+        thread->state = POK_STATE_RUNNABLE;
+        thread->remaining_time_capacity = thread->time_capacity;       
+        thread->next_activation = thread->next_activation + thread->period;
+      }
+```
+```c++
+//pedf调度
+#ifdef POK_NEEDS_SCHED_PEDF
+uint32_t pok_sched_part_pedf(const uint32_t index_low,
+                             const uint32_t index_high,
+                             const uint32_t prev_thread,
+                             const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  uint64_t earliest_ddl = 0;
+  uint32_t max_thread = IDLE_THREAD;
+  uint8_t current_proc = pok_get_proc_id();
+
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        (pok_threads[i].ddl < earliest_ddl || earliest_ddl <= 0)) {
+      earliest_ddl = pok_threads[i].ddl;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = earliest_ddl > 0 ? max_thread : IDLE_THREAD;
+
+#ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+         "(ddl "
+         "%llu)\n",
+         current_proc, elected, pok_threads[elected].ddl);
+#endif
+
+  return elected;
+}
+#endif // POK_NEEDS_SCHED_PEDF
+```
+
+
+#### Round-Robin与Weight-Round-Robin调度
+
+RR调度与WRR调度的实现类似，当WRR中W均相等时，二者实际等价，以下介绍WRR。
+
+WRR调度中，为thread_attr增加了weight参数，使用户可以配置thread的调度权重。此外，在thread结构中增加了weight和remaining_timeslice参数，前者用于记录该线程权重，后者记录该线程剩余时间片。该参数的增加同时需要更新部分初始化函数，将不在此赘述。
+
+当线程调度时，依据weight大小为其填充时间片，当时间片未消耗完成时，将继续执行该线程，当时间片归零后，将依据rr调度的方式寻找该进程的新的可运行线程，并调度到该线程。
+
+```c++
+#ifdef POK_NEEDS_SCHED_WRR
+uint32_t pok_sched_part_wrr(const uint32_t index_low, const uint32_t index_high,
+                            const uint32_t prev_thread,
+                            const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  uint8_t current_proc = pok_get_proc_id();
+
+  if (pok_threads[current_thread].remaining_timeslice > 0)
+    pok_threads[current_thread].remaining_timeslice--;
+
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].remaining_time_capacity > 0 &&
+      pok_threads[current_thread].remaining_timeslice > 0) {
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  continue thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+    return current_thread;
+  }
+
+  uint32_t i = from;
+  if (i == IDLE_THREAD) {
+    i = index_low;
+  } else {
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  }
+
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc && i != IDLE_THREAD) {
+#ifdef POK_NEEDS_DEBUG
+      printf("--- Scheduling processor: %hhd\n    elected thread %d "
+             "(remaining_timeslice "
+             "%u)\n",
+             current_proc, i, pok_threads[i].remaining_timeslice);
+#endif
+      if (current_thread != IDLE_THREAD) {
+        pok_threads[current_thread].remaining_timeslice =
+            pok_threads[current_thread].weight;
+      }
+      return i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].processor_affinity == current_proc &&
+      current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  scheduling self-thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+
+    return current_thread;
+  }
+
+#ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+         "(IDLE_THREAD remaining_timeslice "
+         "%u)\n",
+         current_proc, IDLE_THREAD,
+         pok_threads[IDLE_THREAD].remaining_timeslice);
+#endif
+  if (current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+  }
+  return IDLE_THREAD;
+}
+#endif // POK_NEEDS_SCHED_WRR
+```
+
+#### 优先级抢占式Weight-Round-Robin调度
+该调度是任务四所要求的新调度方式，在WRR调度的基础上，可以为线程设置优先级，并允许优先级严格更高的线程在低优先级线程尚未用完时间片时进行抢占。该调度方式使得场景中的紧急任务能够更快的得到执行，理论上将能取得更好的效果。经实验检测，结果如预期。
+
+```c++
+#ifdef POK_NEEDS_SCHED_PWRR
+uint32_t pok_sched_part_pwrr(const uint32_t index_low,
+                             const uint32_t index_high,
+                             const uint32_t prev_thread,
+                             const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+  // preempt by higher priority
+  int32_t current_prio = pok_threads[current_thread].priority;
+  int32_t max_prio = -1;
+  uint32_t max_thread = current_thread;
+  uint8_t current_proc = pok_get_proc_id();
+  if (pok_threads[current_thread].remaining_timeslice > 0)
+    pok_threads[current_thread].remaining_timeslice--;
+
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        pok_threads[i].priority > max_prio) {
+      max_prio = pok_threads[i].priority;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = max_prio >= 0 ? max_thread : IDLE_THREAD;
+  if (pok_threads[elected].priority > current_prio) {
+    if (current_thread != IDLE_THREAD) {
+      pok_threads[current_thread].remaining_timeslice =
+          pok_threads[current_thread].weight;
+    }
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  preemptive thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, elected, pok_threads[elected].remaining_timeslice);
+#endif
+    return elected;
+  }
+  // wrr
+
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].remaining_time_capacity > 0 &&
+      pok_threads[current_thread].remaining_timeslice > 0) {
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  continue thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+    return current_thread;
+  } else if (current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+  }
+
+  i = from;
+  if (i == IDLE_THREAD) {
+    i = index_low;
+  } else {
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  }
+
+  while (i != from) {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc) {
+#ifdef POK_NEEDS_DEBUG
+      printf("--- Scheduling processor: %hhd\n    elected thread %d "
+             "(remaining_timeslice "
+             "%u)\n",
+             current_proc, i, pok_threads[i].remaining_timeslice);
+#endif
+
+      return i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  }
+
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].processor_affinity == current_proc &&
+      current_thread != IDLE_THREAD) {
+    pok_threads[current_thread].remaining_timeslice =
+        pok_threads[current_thread].weight;
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  scheduling self-thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+
+    return current_thread;
+  }
+#ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n    elected thread %d "
+         "(IDLE_THREAD remaining_timeslice "
+         "%u)\n",
+         current_proc, IDLE_THREAD,
+         pok_threads[IDLE_THREAD].remaining_timeslice);
+#endif
+  return IDLE_THREAD;
+}
+#endif // POK_NEEDS_SCHED_PWRR
+```
+
 ### 分区调度
 
 #### 分区调度框架搭建
