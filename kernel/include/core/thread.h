@@ -64,6 +64,7 @@ typedef struct {
   uint64_t ddl;
   uint32_t weight;
   uint32_t remaining_timeslice;
+  uint8_t mlfq_level;
   /* stack pointer
    * FIXME: this is platform-dependent code, we have to handle that ! */
 } pok_thread_t;
