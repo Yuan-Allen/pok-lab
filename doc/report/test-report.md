@@ -1,14 +1,14 @@
 # 测试报告
 
-# 任务3
-## 应用场景设计
+## 任务3
+### 应用场景设计
 在该实验中，我们设计一个智能温控系统，该系统涉及温度检测，控温调节，数据显示，警报系统等多个并行任务，每个任务的优先级，执行时间，ddl需求不同，且是周期性任务。
 - **任务1：温度检测**： 优先级中，执行时间中，ddl晚。
 - **任务2：控温调节**： 优先级较高，执行时间长，ddl中。
 - **任务3：数据显示**： 优先级低，执行时间短，ddl较晚。
 - **任务4：警报系统**： 优先级高，执行时间短，ddl早。
 
-## 测试用例介绍
+### 测试用例介绍
 
 针对上述四个任务，分别周期性运行四个线程，分别通过参数priority,time_capacity,deadline,weight,entry即period来配置各线程的优先级，执行时间，ddl，wrr调度的权重，入口函数和周期。
 **参数配置如下：**
@@ -64,8 +64,8 @@
   pok_thread_wait_infinite();
 ```
 
-## 测试结果
-##### PPS
+### 测试结果
+#### PPS
 ```
 POK_SCHED_PPS : partition 0
 POK kernel initialized
@@ -116,7 +116,7 @@ thread [1][4] activated at 41714734, deadline at 51714734
 ```
 
 
-##### PEDF
+#### PEDF
 ```
 POK_SCHED_PEDF : partition 0
 POK kernel initialized
@@ -166,7 +166,7 @@ thread [1][3] activated at 41696296, deadline at 59696296
 thread [1][4] activated at 41760829, deadline at 51760829
 ```
 
-##### RR
+#### RR
 即WRR中weight都置为1.
 ```
 POK_SCHED_WRR : partition 0
@@ -279,7 +279,7 @@ thread [1][3] activated at 41622544, deadline at 59622544
 thread [1][4] activated at 41659420, deadline at 51659420
 ```
 
-##### WRR
+#### WRR
 ```
 POK_SCHED_WRR : partition 0
 POK kernel initialized
@@ -381,15 +381,15 @@ thread [1][1] finished at 60006471, deadline met, next activation: 61152375
     elected thread 5 (IDLE_THREAD remaining_timeslice 0)
 ```
 
-## 各算法优劣比较
+### 各算法优劣比较
 经过比较，我们发现：
 - 在PPS调度方式下，可以保证高优先级的线程先得到执行，但其忽视了任务的执行时间与deadline，可能导致一些较低优先级任务miss deadline。此外可能出现任务饥饿，得不到执行等问题。
 - 在PEDF调度方式下，可调度集问题下，总能尽可能地满足所有ddl。然而，这种方式忽略了任务的优先级与执行时间，在不可调度问题集下，不能让尽可能少的任务miss ddl，也不能尽量保证高优先级任务met ddl。此外可能出现任务饥饿，得不到执行等问题。
 - 在RR调度方式下，各线程调度更公平，线程不会饿死。但调度死板，各任务的差异被忽视，优先级失去意义，ddl也更可能miss。
 - 在WRR调度方式下，可能得到较为公平且尽可能满足ddl的调度，但这需要用户在充分了解任务的基础上聪明地配置线程权重。
 
-# 任务4
-## 通常任务与紧急任务的调度实验
+## 任务4
+### 通常任务与紧急任务的调度实验
 
 ### 测试用例介绍
 
@@ -548,8 +548,8 @@ thread [1][0] scheduled at 1004871
   thread [1][3] finished at 902005398, deadline met, next activation: 4554100654843769
 ```
 观察日志，抢占式weighted-round-robin首先轮流调度通常任务和其他任务，通常任务错过deadline，紧急任务生成后，紧急任务立即抢占，独占资源进行执行，并在deadline之前完成，补救了通常任务的miss deadline。由于抢占机制和round-robin的机制的共存，该调度算法既有处理紧急任务的能力，又能够使得一些低优先级的任务能够正常执行不至于饿死。
-# 任务5
-## MLFQ算法的测试用例介绍
+## 任务5
+### MLFQ算法的测试用例介绍
 
 MLFQ算法及其测试用例均使用Python实现。算法设计与实现可参考设计文档。测试中的对象定义以及测试用例内容如下所示。
 
@@ -578,7 +578,7 @@ if __name__ == "__main__":
         print(f"Process {process.name} completed")
 ```
 
-## MLFQ算法的实验结果及其说明
+### MLFQ算法的实验结果及其说明
 
 测试结果如下所示。
 
