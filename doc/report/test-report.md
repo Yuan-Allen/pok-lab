@@ -3,18 +3,388 @@
 # 任务3
 ## 应用场景设计
 在该实验中，我们设计一个智能温控系统，该系统涉及温度检测，控温调节，数据显示，警报系统等多个并行任务，每个任务的优先级，执行时间，ddl需求不同，且是周期性任务。
-- **温度检测**： 优先级中，执行时间中，ddl晚。
-- **控温调节**： 优先级中，执行时间长，ddl中。
-- **数据显示**： 优先级低，执行时间短，ddl较晚。
-- **警报系统**： 优先级高，执行时间短，ddl早。
+- **任务1：温度检测**： 优先级中，执行时间中，ddl晚。
+- **任务2：控温调节**： 优先级较高，执行时间长，ddl中。
+- **任务3：数据显示**： 优先级低，执行时间短，ddl较晚。
+- **任务4：警报系统**： 优先级高，执行时间短，ddl早。
+
 ## 测试用例介绍
 
+针对上述四个任务，分别周期性运行四个线程，分别通过参数priority,time_capacity,deadline,weight,entry即period来配置各线程的优先级，执行时间，ddl，wrr调度的权重，入口函数和周期。
+**参数配置如下：**
+| 任务线程 | 优先级 | 执行时间(ms) | ddl(ms) | WRR权重 | 周期(ms) |
+| -------- | ------ | ------------ | ------- | ------- | -------- |
+| 温度检测 | 44     | 4            | 20      | 1       | 20       |
+| 控温调节 | 66     | 10           | 15      | 5       | 20       |
+| 数据显示 | 22     | 2            | 18      | 1       | 20       |
+| 警报系统 | 88     | 2            | 10      | 10      | 20       |
 
+具体代码如下：
+```c++
+  tattr.priority = 44;
+  tattr.entry = temperature_check;
+  tattr.processor_affinity = 0;
+  tattr.time_capacity = 4;
+  tattr.deadline = 20000000;
+  tattr.period = 20000000;
+  tattr.weight = 1;
+
+  ret = pok_thread_create(&tid, &tattr);
+  printf("[P1] pok_thread_create (1)temperature_check return=%d\n", ret);
+
+  tattr.priority = 66;
+  tattr.entry = temperature_control;
+  tattr.time_capacity = 10;
+  tattr.deadline = 15000000;
+  tattr.weight = 5;
+  tattr.period = 20000000;
+
+  ret = pok_thread_create(&tid, &tattr);
+  printf("[P1] pok_thread_create (2)temperature_control return=%d\n", ret);
+  tattr.priority = 22;
+  tattr.entry = data_display;
+  tattr.time_capacity = 2;
+  tattr.deadline = 18000000;
+  tattr.weight = 1;
+  tattr.period = 20000000;
+
+  ret = pok_thread_create(&tid, &tattr);
+  printf("[P1] pok_thread_create (3)data_display return=%d\n", ret);
+  tattr.priority = 88;
+  tattr.entry = alarm;
+  tattr.time_capacity = 2;
+  tattr.deadline = 10000000;
+  tattr.weight = 10;
+  tattr.period = 20000000;
+
+  ret = pok_thread_create(&tid, &tattr);
+  printf("[P1] pok_thread_create (4)alarm return=%d\n", ret);
+
+  pok_partition_set_mode(POK_PARTITION_MODE_NORMAL);
+  pok_thread_wait_infinite();
+```
+
+## 测试结果
+##### PPS
+```
+POK_SCHED_PPS : partition 0
+POK kernel initialized
+[P1] pok_thread_create (1)temperature_check return=0
+[P1] pok_thread_create (2)temperature_control return=0
+[P1] pok_thread_create (3)data_display return=0
+[P1] pok_thread_create (4)alarm return=0
+--- Scheduling processor: 0
+    elected thread 4 (priority 88)
+ALARM!!!
+thread [1][4] finished at 3005394, deadline met, next activation: 21714734
+--- Scheduling processor: 0
+    elected thread 2 (priority 66)
+adjust temp
+thread [1][2] finished at 13008009, deadline met, next activation: 21604106
+--- Scheduling processor: 0
+    elected thread 1 (priority 44)
+check temp
+thread [1][1] finished at 17009055, deadline met, next activation: 21170813
+--- Scheduling processor: 0
+    elected thread 3 (priority 22)
+display
+thread [1][3] finished at 19000359, deadline met, next activation: 21659420
+--- Scheduling processor: 0
+    elected thread 5 (priority 0)
+thread [1][1] activated at 21170813, deadline at 41170813
+thread [1][2] activated at 21604106, deadline at 36604106
+thread [1][3] activated at 21659420, deadline at 39659420
+thread [1][4] activated at 21714734, deadline at 31714734
+--- Scheduling processor: 0
+    elected thread 4 (priority 88)
+thread [1][4] finished at 24006276, deadline met, next activation: 41714734
+--- Scheduling processor: 0
+    elected thread 2 (priority 66)
+thread [1][2] finished at 34008891, deadline met, next activation: 41604106
+--- Scheduling processor: 0
+    elected thread 1 (priority 44)
+thread [1][1] finished at 38000718, deadline met, next activation: 41170813
+--- Scheduling processor: 0
+    elected thread 3 (priority 22)
+thread [1][3] finished at 40001241, deadline miss, next activation: 41659420
+--- Scheduling processor: 0
+    elected thread 5 (priority 0)
+thread [1][1] activated at 41170813, deadline at 61170813
+thread [1][2] activated at 41604106, deadline at 56604106
+thread [1][3] activated at 41659420, deadline at 59659420
+thread [1][4] activated at 41714734, deadline at 51714734
+```
+
+
+##### PEDF
+```
+POK_SCHED_PEDF : partition 0
+POK kernel initialized
+[P1] pok_thread_create (1)temperature_check return=0
+[P1] pok_thread_create (2)temperature_control return=0
+[P1] pok_thread_create (3)data_display return=0
+[P1] pok_thread_create (4)alarm return=0
+--- Scheduling processor: 0
+    elected thread 4 (ddl 11760829)
+ALARM!!!
+thread [1][4] finished at 3005394, deadline met, next activation: 21760829
+--- Scheduling processor: 0
+    elected thread 2 (ddl 16604106)
+adjust temp
+thread [1][2] finished at 13008009, deadline met, next activation: 21604106
+--- Scheduling processor: 0
+    elected thread 3 (ddl 19696296)
+display
+thread [1][3] finished at 15008532, deadline met, next activation: 21696296
+--- Scheduling processor: 0
+    elected thread 1 (ddl 21170813)
+check temp
+thread [1][1] finished at 19000359, deadline met, next activation: 21170813
+--- Scheduling processor: 0
+    elected thread 5 (ddl 0)
+thread [1][1] activated at 21170813, deadline at 41170813
+thread [1][2] activated at 21604106, deadline at 36604106
+thread [1][3] activated at 21696296, deadline at 39696296
+thread [1][4] activated at 21760829, deadline at 31760829
+--- Scheduling processor: 0
+    elected thread 4 (ddl 31760829)
+thread [1][4] finished at 24006276, deadline met, next activation: 41760829
+--- Scheduling processor: 0
+    elected thread 2 (ddl 36604106)
+thread [1][2] finished at 34008891, deadline met, next activation: 41604106
+--- Scheduling processor: 0
+    elected thread 3 (ddl 39696296)
+thread [1][3] finished at 36000195, deadline met, next activation: 41696296
+--- Scheduling processor: 0
+    elected thread 1 (ddl 41170813)
+thread [1][1] finished at 40001241, deadline met, next activation: 41170813
+--- Scheduling processor: 0
+    elected thread 5 (ddl 0)
+thread [1][1] activated at 41170813, deadline at 61170813
+thread [1][2] activated at 41604106, deadline at 56604106
+thread [1][3] activated at 41696296, deadline at 59696296
+thread [1][4] activated at 41760829, deadline at 51760829
+```
+
+##### RR
+即WRR中weight都置为1.
+```
+POK_SCHED_WRR : partition 0
+POK kernel initialized
+[P1] pok_thread_create (1)temperature_check return=0
+[P1] pok_thread_create (2)temperature_control return=0
+[P1] pok_thread_create (3)data_display return=0
+[P1] pok_thread_create (4)alarm return=0
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+check temp
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+adjust temp
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+display
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 1)
+ALARM!!!
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+thread [1][3] finished at 8002092, deadline met, next activation: 21622544
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 1)
+thread [1][4] finished at 9006963, deadline met, next activation: 21659420
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+thread [1][1] finished at 12003138, deadline met, next activation: 21161594
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+thread [1][2] finished at 19000359, deadline miss, next activation: 21576449
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+thread [1][1] activated at 21161594, deadline at 41161594
+thread [1][2] activated at 21576449, deadline at 36576449
+thread [1][3] activated at 21622544, deadline at 39622544
+thread [1][4] activated at 21659420, deadline at 31659420
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+thread [1][3] finished at 27002451, deadline met, next activation: 41622544
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 1)
+thread [1][4] finished at 28007322, deadline met, next activation: 41659420
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+thread [1][1] finished at 33004020, deadline met, next activation: 41161594
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 2 (remaining_timeslice 1)
+thread [1][2] finished at 40001241, deadline miss, next activation: 41576449
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+thread [1][1] activated at 41161594, deadline at 61161594
+thread [1][2] activated at 41576449, deadline at 56576449
+thread [1][3] activated at 41622544, deadline at 59622544
+thread [1][4] activated at 41659420, deadline at 51659420
+```
+
+##### WRR
+```
+POK_SCHED_WRR : partition 0
+POK kernel initialized
+[P1] pok_thread_create (1)temperature_check return=0
+[P1] pok_thread_create (2)temperature_control return=0
+[P1] pok_thread_create (3)data_display return=0
+[P1] pok_thread_create (4)alarm return=0
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+check temp
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 5)
+adjust temp
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+display
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 10)
+ALARM!!!
+thread [1][4] finished at 10002615, deadline met, next activation: 21677858
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 5)
+thread [1][2] finished at 16004184, deadline met, next activation: 21576449
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+thread [1][3] finished at 17009055, deadline met, next activation: 21622544
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 1 (remaining_timeslice 1)
+thread [1][1] finished at 19000359, deadline met, next activation: 21152375
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+thread [1][1] activated at 21152375, deadline at 41152375
+thread [1][2] activated at 21576449, deadline at 36576449
+thread [1][3] activated at 21622544, deadline at 39622544
+thread [1][4] activated at 21677858, deadline at 31677858
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 5)
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 10)
+thread [1][4] finished at 30007845, deadline met, next activation: 41677858
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 5)
+thread [1][2] finished at 36000195, deadline met, next activation: 41576449
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+thread [1][3] finished at 37005066, deadline met, next activation: 41622544
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 1 (remaining_timeslice 1)
+thread [1][1] finished at 40001241, deadline met, next activation: 41152375
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+thread [1][1] activated at 41152375, deadline at 61152375
+thread [1][2] activated at 41576449, deadline at 56576449
+thread [1][3] activated at 41622544, deadline at 59622544
+thread [1][4] activated at 41677858, deadline at 51677858
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 5)
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 4 (remaining_timeslice 10)
+thread [1][4] finished at 50003856, deadline met, next activation: 61677858
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+    elected thread 2 (remaining_timeslice 5)
+thread [1][2] finished at 56005425, deadline met, next activation: 61576449
+--- Scheduling processor: 0
+    elected thread 3 (remaining_timeslice 1)
+thread [1][3] finished at 57001077, deadline met, next activation: 61622544
+--- Scheduling processor: 0
+    elected thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  scheduling self-thread 1 (remaining_timeslice 1)
+thread [1][1] finished at 60006471, deadline met, next activation: 61152375
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+--- Scheduling processor: 0
+    elected thread 5 (IDLE_THREAD remaining_timeslice 0)
+```
 
 ## 各算法优劣比较
 经过比较，我们发现：
 - 在PPS调度方式下，可以保证高优先级的线程先得到执行，但其忽视了任务的执行时间与deadline，可能导致一些较低优先级任务miss deadline。此外可能出现任务饥饿，得不到执行等问题。
-- 在PEDF调度方式下，可调度集问题下，总能尽可能地满足所有ddl，然而，这种方式忽略了任务的优先级与执行时间，在不可调度问题集下，不能让尽可能少的任务miss ddl，也不能尽量保证高优先级任务met ddl。此外可能出现任务饥饿，得不到执行等问题。
+- 在PEDF调度方式下，可调度集问题下，总能尽可能地满足所有ddl。然而，这种方式忽略了任务的优先级与执行时间，在不可调度问题集下，不能让尽可能少的任务miss ddl，也不能尽量保证高优先级任务met ddl。此外可能出现任务饥饿，得不到执行等问题。
 - 在RR调度方式下，各线程调度更公平，线程不会饿死。但调度死板，各任务的差异被忽视，优先级失去意义，ddl也更可能miss。
 - 在WRR调度方式下，可能得到较为公平且尽可能满足ddl的调度，但这需要用户在充分了解任务的基础上聪明地配置线程权重。
 

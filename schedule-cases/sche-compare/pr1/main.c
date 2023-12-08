@@ -30,14 +30,14 @@ int main() {
   tattr.time_capacity = 4;
   tattr.deadline = 20000000;
   tattr.period = 20000000;
-  tattr.weight = 5;
+  tattr.weight = 1;
 
   ret = pok_thread_create(&tid, &tattr);
   printf("[P1] pok_thread_create (1)temperature_check return=%d\n", ret);
 
   tattr.priority = 66;
   tattr.entry = temperature_control;
-  tattr.time_capacity = 11;
+  tattr.time_capacity = 10;
   tattr.deadline = 15000000;
   tattr.weight = 5;
   tattr.period = 20000000;
@@ -48,7 +48,7 @@ int main() {
   tattr.entry = data_display;
   tattr.time_capacity = 2;
   tattr.deadline = 18000000;
-  tattr.weight = 5;
+  tattr.weight = 1;
   tattr.period = 20000000;
 
   ret = pok_thread_create(&tid, &tattr);
@@ -57,7 +57,7 @@ int main() {
   tattr.entry = alarm;
   tattr.time_capacity = 2;
   tattr.deadline = 10000000;
-  tattr.weight = 5;
+  tattr.weight = 10;
   tattr.period = 20000000;
 
   ret = pok_thread_create(&tid, &tattr);
