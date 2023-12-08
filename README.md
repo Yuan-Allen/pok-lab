@@ -4,7 +4,7 @@ This is the project for the Real-Time Systems and Scheduling course at SJTU SE.
 
 ## Documentation
 
-The lab reports are accessible at [doc/report/design-report](doc/report/design-report) and [doc/report/test-report](doc/report/test-report).
+The lab reports are accessible at [doc/report/design-report.md](doc/report/design-report.md) and [doc/report/test-report.md](doc/report/test-report.md).
 
 ## Prerequisites
 
