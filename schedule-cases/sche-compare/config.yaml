@@ -18,14 +18,14 @@ partitions:
     - name: pr1
       features: [timer, console, libc]
       threads:
-          count: 3
+          count: 5
           features: [sleep, suspend]
-      scheduler: pwrr
+      scheduler: wrr
       size: 130kB
       objects: ["main.o", "activity.o"]
 
 kernel:
-    features: [debug]
+    features: [debug, sched_info]
     scheduler:
         major_frame: 10s
         slots:
