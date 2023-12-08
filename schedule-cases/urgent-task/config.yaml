@@ -23,10 +23,10 @@ partitions:
       size: 130kB
       semaphores: 1
       objects: ["main.o", "activity.o"]
-      scheduler: static
+      scheduler: pwrr
 
 kernel:
-    features: [debug, sched_info]
+    features: [debug, sched_info, punish]
     scheduler:
         major_frame: 10s
         slots:

@@ -55,7 +55,13 @@ static const char *state_names[] = {
 #endif
 
 extern pok_partition_t pok_partitions[];
-
+#ifdef POK_NEEDS_DDL_PUNISH
+bool_t urgent_task_flag = TRUE;
+void *urgent_task() {
+  while (1) {
+  }
+}
+#endif
 /**
  * \brief The variable that contains the value of partition currently being
  * executed
@@ -278,6 +284,26 @@ void activate_waiting_threads() {
 
 uint32_t pok_elect_thread(uint8_t new_partition_id) {
   uint64_t now = POK_GETTICK();
+#ifdef POK_NEEDS_DDL_PUNISH
+  if ((POK_CURRENT_THREAD.deadline > 0) && (POK_CURRENT_THREAD.ddl < now) &&
+      (urgent_task_flag)) {
+    urgent_task_flag = FALSE;
+    uint32_t tid;
+    pok_ret_t ret;
+    pok_thread_attr_t tattr;
+    tattr.priority = 255;
+    tattr.entry = urgent_task;
+    tattr.processor_affinity = 0;
+    tattr.time_capacity = 1e2;
+    tattr.deadline = 2e8;
+    tattr.weight = 10e8;
+    ret = pok_partition_thread_create(&tid, &tattr, pok_current_partition);
+    printf(
+        "[P1] pok_thread_create (urgent) return=%d at %llu, deadline is %llu\n",
+        ret, POK_GETTICK(), POK_GETTICK() + tattr.deadline);
+  }
+#endif
+
   pok_partition_t *new_partition = &(pok_partitions[new_partition_id]);
 
   /*
@@ -384,35 +410,6 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
                  // infinite with value -1 <--> INFINITE_TIME_CAPACITY)
       {
 
-#ifdef POK_NEEDS_DDL_PUNISH
-        // printf("punish!!");
-        // if ((POK_CURRENT_THREAD.deadline > 0) && (POK_CURRENT_THREAD.ddl <
-        // now) && (urgent_task_flag)) {
-        //   urgent_task_flag = TRUE;
-        //       uint8_t tid;
-        //       pok_ret_t ret;
-        //       pok_thread_attr_t tattr;
-        //       pok_syscall_args_t syscall_args;
-        //       syscall_args.nargs = 2;
-        //       syscall_args.arg1 = (uint32_t)(&tid);
-        //       syscall_args.arg2 = (uint32_t)(&tattr);
-        //       tattr.priority = 255;
-        //       tattr.entry = urgent_task;
-        //       tattr.processor_affinity = 0;
-        //       tattr.time_capacity = 1e2;
-        //       tattr.deadline = 2e8;
-
-        //       ret = pok_core_syscall(POK_SYSCALL_THREAD_CREATE,
-        //                      const pok_syscall_args_t *args,
-        //                      const pok_syscall_info_t *infos);(sid,
-        //                      &((pok_syscall_args_t){2, arg1, arg2, 0, 0,
-        //                      0}));(POK_SYSCALL_THREAD_CREATE,
-        //                      (uint32_t)&thread_id,
-        //                 (uint32_t)&attr);
-        //       printf("[P1] pok_thread_create (urgent) return=%d\n", ret);
-        // }
-#endif
-
 #ifdef POK_NEEDS_SCHED_INFO
         if (POK_CURRENT_THREAD.deadline > 0) {
           printf("thread [%u][%u] finished at %lld, deadline %s, next "
@@ -430,6 +427,7 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
                  now, POK_CURRENT_THREAD.next_activation);
         }
 #endif
+
         POK_CURRENT_THREAD.state = POK_STATE_WAIT_NEXT_ACTIVATION;
       }
     }
@@ -455,13 +453,14 @@ uint32_t pok_elect_thread(uint8_t new_partition_id) {
         now + pok_threads[elected].remaining_time_capacity;
 
 #ifdef POK_NEEDS_SCHED_INFO
-    // if (elected != IDLE_THREAD) {
-    //   printf("thread [%u][%u] scheduled at %lld\n",
-    //          (unsigned)pok_current_partition + 1,
-    //          (unsigned)(elected - POK_CURRENT_PARTITION.thread_index_low),
-    //          POK_GETTICK());
-    // }
+  if (elected != IDLE_THREAD) {
+    printf("thread [%u][%u] scheduled at %lld\n",
+           (unsigned)pok_current_partition + 1,
+           (unsigned)(elected - POK_CURRENT_PARTITION.thread_index_low),
+           POK_GETTICK());
+  }
 #endif
+
   return elected;
 }
 

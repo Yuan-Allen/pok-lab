@@ -16,7 +16,7 @@
 #define POK_CONFIG_PARTITIONS_NTHREADS                                         \
   { 5 }
 #define POK_CONFIG_PARTITIONS_SCHEDULER                                        \
-  { POK_SCHED_STATIC }
+  { POK_SCHED_PWRR }
 #define POK_CONFIG_PARTITIONS_SIZE                                             \
   { 133120 }
 #define POK_CONFIG_PROCESSOR_AFFINITY                                          \
@@ -31,10 +31,11 @@
   { 0 }
 
 #define POK_NEEDS_CONSOLE 1
+#define POK_NEEDS_DDL_PUNISH 1
 #define POK_NEEDS_DEBUG 1
 #define POK_NEEDS_LOCKOBJECTS 1
 #define POK_NEEDS_SCHED_INFO 1
-#define POK_NEEDS_SCHED_STATIC 1
+#define POK_NEEDS_SCHED_PWRR 1
 #define POK_NEEDS_THREAD_SLEEP 1
 #define POK_NEEDS_THREAD_SUSPEND 1
 #define POK_NEEDS_TIME 1

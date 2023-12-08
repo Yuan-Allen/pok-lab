@@ -30,6 +30,7 @@ int main() {
   tattr.time_capacity = 5e2;
   tattr.period = 10e8;
   tattr.deadline = 8e8;
+  tattr.weight = 1e6;
 
   ret = pok_thread_create(&tid, &tattr);
 
@@ -39,6 +40,7 @@ int main() {
   tattr.time_capacity = 4e2;
   tattr.period = 20e8;
   tattr.deadline = 6e8;
+  tattr.weight = 1e6;
 
   ret = pok_thread_create(&tid, &tattr);
   printf("[P1] pok_thread_create (1) return=%d\n", ret);
