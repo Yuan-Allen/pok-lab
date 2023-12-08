@@ -74,6 +74,7 @@ void pok_idle_thread_init() {
     pok_threads[IDLE_THREAD - i].ddl = 0;
     pok_threads[i].weight = 0;
     pok_threads[i].remaining_timeslice = 0;
+    pok_threads[i].mlfq_level = 0;
     pok_threads[IDLE_THREAD - i].time_capacity = INFINITE_TIME_VALUE;
     pok_threads[IDLE_THREAD - i].next_activation = 0;
     pok_threads[IDLE_THREAD - i].remaining_time_capacity = INFINITE_TIME_VALUE;
@@ -116,6 +117,7 @@ void pok_thread_init(void) {
     pok_threads[i].ddl = 0;
     pok_threads[i].weight = 0;
     pok_threads[i].remaining_timeslice = 0;
+    pok_threads[i].mlfq_level = 0;
     pok_threads[i].time_capacity = INFINITE_TIME_VALUE;
     pok_threads[i].remaining_time_capacity = INFINITE_TIME_VALUE;
     pok_threads[i].next_activation = 0;
@@ -189,6 +191,11 @@ pok_ret_t pok_partition_thread_create(uint32_t *thread_id,
     pok_threads[id].remaining_time_capacity = POK_THREAD_DEFAULT_TIME_CAPACITY;
     pok_threads[id].time_capacity = POK_THREAD_DEFAULT_TIME_CAPACITY;
   }
+
+#ifdef POK_NEEDS_SCHED_MLFQ
+  pok_threads[id].mlfq_level = POK_THREAD_MLFQ_MAX_LEVEL;
+  pok_threads[id].remaining_timeslice = 1;
+#endif // POK_NEEDS_SCHED_MLFQ
 
   pok_threads[id].processor_affinity =
       get_proc_real_id(partition_id, attr->processor_affinity);
