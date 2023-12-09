@@ -89,7 +89,7 @@ void pok_partition_setup_scheduler(const uint8_t pid) {
 #ifdef POK_NEEDS_SCHED_MLFQ
   case POK_SCHED_MLFQ:
     pok_partitions[pid].sched_func = &pok_sched_part_mlfq;
-    printf("POK_SCHED_PWRR : partition %d\n", pid);
+    printf("POK_SCHED_MLFQ : partition %d\n", pid);
     break;
 #endif // POK_NEEDS_SCHED_MLFQ
     /*
