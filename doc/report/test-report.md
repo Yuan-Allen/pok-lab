@@ -726,3 +726,124 @@ Process P2 completed
 Process P1 completed
 Process P3 completed
 ```
+
+
+## 选做任务：在pok中实现mlfq调度并进行测试
+### 测试用例
+在任务3所设计的场景中，测试mlfq的表现，配置同任务3。此外，为方便观察时间片大小变化以及调度发生原因，间隔单位时间输出当前线程信息。
+
+### 测试结果
+```
+POK_SCHED_MLFQ : partition 0
+POK kernel initialized
+[P1] pok_thread_create (1)temperature_check return=0
+[P1] pok_thread_create (2)temperature_control return=0
+[P1] pok_thread_create (3)data_display return=0
+[P1] pok_thread_create (4)alarm return=0
+--- Scheduling processor: 0
+  sche thread 1 (remaining_timeslice 1)
+check temp
+--- Scheduling processor: 0
+  sche thread 2 (remaining_timeslice 1)
+adjust temp
+--- Scheduling processor: 0
+  sche thread 3 (remaining_timeslice 1)
+display
+--- Scheduling processor: 0
+  sche thread 4 (remaining_timeslice 1)
+ALARM!!!
+--- Scheduling processor: 0
+  sche thread 4 (remaining_timeslice 2)
+thread [1][4] finished at 6001569, deadline met, next activation: 21687077
+--- Scheduling processor: 0
+  sche thread 1 (remaining_timeslice 2)
+--- Scheduling processor: 0
+  continue thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 2 (remaining_timeslice 2)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 3 (remaining_timeslice 2)
+thread [1][3] finished at 11007486, deadline met, next activation: 21640982
+--- Scheduling processor: 0
+  sche thread 1 (remaining_timeslice 4)
+thread [1][1] finished at 12003138, deadline met, next activation: 21161594
+--- Scheduling processor: 0
+  sche thread 2 (remaining_timeslice 4)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 3)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 2)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 2 (remaining_timeslice 8)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 7)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 6)
+thread [1][2] finished at 19000359, deadline miss, next activation: 21604106
+--- Scheduling processor: 0
+  sche thread 5 (remaining_timeslice 0)
+--- Scheduling processor: 0
+  sche thread 5 (remaining_timeslice 0)
+--- Scheduling processor: 0
+  sche thread 5 (remaining_timeslice 0)
+thread [1][1] activated at 21161594, deadline at 41161594
+thread [1][2] activated at 21604106, deadline at 36604106
+thread [1][3] activated at 21640982, deadline at 39640982
+thread [1][4] activated at 21687077, deadline at 31687077
+--- Scheduling processor: 0
+  sche thread 3 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 4 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 4 (remaining_timeslice 4)
+thread [1][4] finished at 25001928, deadline met, next activation: 41687077
+--- Scheduling processor: 0
+  sche thread 1 (remaining_timeslice 3)
+--- Scheduling processor: 0
+  continue thread 1 (remaining_timeslice 2)
+--- Scheduling processor: 0
+  continue thread 1 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 3 (remaining_timeslice 4)
+thread [1][3] finished at 29002974, deadline met, next activation: 41640982
+--- Scheduling processor: 0
+  sche thread 1 (remaining_timeslice 8)
+thread [1][1] finished at 30007845, deadline met, next activation: 41161594
+--- Scheduling processor: 0
+  sche thread 2 (remaining_timeslice 5)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 4)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 3)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 2)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 1)
+--- Scheduling processor: 0
+  sche thread 2 (remaining_timeslice 16)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 15)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 14)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 13)
+--- Scheduling processor: 0
+  continue thread 2 (remaining_timeslice 12)
+thread [1][2] finished at 40001241, deadline miss, next activation: 41604106
+--- Scheduling processor: 0
+  sche thread 5 (remaining_timeslice 0)
+--- Scheduling processor: 0
+  sche thread 5 (remaining_timeslice 0)
+thread [1][1] activated at 41161594, deadline at 61161594
+thread [1][2] activated at 41604106, deadline at 56604106
+thread [1][3] activated at 41640982, deadline at 59640982
+thread [1][4] activated at 41687077, deadline at 51687077
+```
+
+### 测试分析
+可以看到，执行时间较短的任务在时间片未用完时便释放了计算资源，其优先级并未改变，且剩余时间片可以在下一周期中继续使用。
+执行时间较长的任务多次降级，其时间片变大，但优先级变低，在后续周期中延后执行。测试结果表明mlfq调度功能正确，符合预期。

@@ -20,7 +20,7 @@ partitions:
       threads:
           count: 5
           features: [sleep, suspend]
-      scheduler: pps
+      scheduler: mlfq
       size: 130kB
       objects: ["main.o", "activity.o"]
 
