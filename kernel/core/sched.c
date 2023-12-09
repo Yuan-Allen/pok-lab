@@ -1151,8 +1151,8 @@ uint32_t pok_sched_part_mlfq(const uint32_t index_low,
   } else if (current_thread != IDLE_THREAD &&
              pok_threads[current_thread].remaining_timeslice == 0) {
     pok_threads[current_thread].mlfq_level--;
-    if (pok_threads[current_thread].mlfq_level == 0) {
-      pok_threads[current_thread].mlfq_level = 7;
+    if (pok_threads[current_thread].mlfq_level < 0) {
+      pok_threads[current_thread].mlfq_level = 0;
     }
     pok_threads[current_thread].remaining_timeslice =
         (1 << 7 >> pok_threads[current_thread].mlfq_level);

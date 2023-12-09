@@ -863,3 +863,75 @@ if __name__ == "__main__":
 简单来说，每个时间片检查是否有新的进程到达，并加入最高优先级队列，然后调用`mlfq_schedule`函数。在`mlfq_schedule`中，从高优先级向低优先级遍历队列，然后使其运行一个时间片。如果时间片用完还未执行完成，则将其放入下一优先级的队列。
 
 此外，在一个设定的时间间隔`REINSERT_INTERVAL`后，所有任务都会被重新设定到最高优先级。
+
+## 选做：pok中mlfq算法的实现。
+为thread增加参数mlfq_level,线程创建时设置为最高一级。复用wrr中的remaining_timeslice参数，作为线程剩余时间片，
+mlfq优先级每降低一级，则该线程时间片增大一倍。在调度过程中，优先调度到更高优先级的线程。若当前线程没用完时间片，
+为主动释放计算资源，则不更改优先级，剩余时间片可以在下次继续使用（不会重新填充时间片，防止恶意线程频繁主动挂起保
+持高优先级霸占cpu）。若当前线程时间片耗尽，则降低其优先级，并填充新时间片。
+
+```c++
+#ifdef POK_NEEDS_SCHED_MLFQ
+uint32_t pok_sched_part_mlfq(const uint32_t index_low,
+                             const uint32_t index_high,
+                             const uint32_t prev_thread,
+                             const uint32_t current_thread) {
+  uint32_t from = current_thread != IDLE_THREAD ? current_thread : prev_thread;
+
+  // int32_t current_prio = pok_threads[current_thread].mlfq_level;
+  int32_t max_prio = -1;
+  uint32_t max_thread = current_thread;
+  uint8_t current_proc = pok_get_proc_id();
+  if (pok_threads[current_thread].remaining_timeslice > 0)
+    pok_threads[current_thread].remaining_timeslice--;
+  // continue current thread because remaining timeslice
+  if (pok_threads[current_thread].state == POK_STATE_RUNNABLE &&
+      pok_threads[current_thread].remaining_time_capacity > 0 &&
+      pok_threads[current_thread].remaining_timeslice > 0) {
+#ifdef POK_NEEDS_DEBUG
+    printf("--- Scheduling processor: %hhd\n  continue thread %d "
+           "(remaining_timeslice "
+           "%u)\n",
+           current_proc, current_thread,
+           pok_threads[current_thread].remaining_timeslice);
+#endif
+    return current_thread;
+  } else if (current_thread != IDLE_THREAD &&
+             pok_threads[current_thread].remaining_timeslice == 0) {
+    pok_threads[current_thread].mlfq_level--;
+    if (pok_threads[current_thread].mlfq_level < 0) {
+      pok_threads[current_thread].mlfq_level = 0;
+    }
+    pok_threads[current_thread].remaining_timeslice =
+        (1 << 7 >> pok_threads[current_thread].mlfq_level);
+  } //降低优先级，填充对应时间片
+  // sche to highest level
+  //本实现中以0为低优先级，7为最高优先级
+  if (prev_thread == IDLE_THREAD)
+    from = index_low;
+
+  uint32_t i = from;
+  do {
+    if (pok_threads[i].state == POK_STATE_RUNNABLE &&
+        pok_threads[i].processor_affinity == current_proc &&
+        pok_threads[i].mlfq_level > max_prio) {
+      max_prio = pok_threads[i].mlfq_level;
+      max_thread = i;
+    }
+    i++;
+    if (i >= index_high) {
+      i = index_low;
+    }
+  } while (i != from);
+
+  uint32_t elected = max_prio >= 0 ? max_thread : IDLE_THREAD;
+#ifdef POK_NEEDS_DEBUG
+  printf("--- Scheduling processor: %hhd\n  sche thread %d "
+         "(remaining_timeslice "
+         "%u)\n",
+         current_proc, elected, pok_threads[elected].remaining_timeslice);
+#endif
+  return elected;
+}
+#endif // POK_NEEDS_SCHED_MLFQ
+```
